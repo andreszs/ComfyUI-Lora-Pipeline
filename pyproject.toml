@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "comfyui-lora-pipeline"
+version = "0.0.0"
+description = "Area-based LoRA scheduling and area conditioning wrappers for ComfyUI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/andreszs/comfyui-lora-pipeline"
+Documentation = "https://github.com/andreszs/comfyui-lora-pipeline#readme"
+"Bug Tracker" = "https://github.com/andreszs/comfyui-lora-pipeline/issues"
+
+[tool.comfy]
+PublisherId = "andreszs"
+DisplayName = "LoRA Pipeline"
+Icon = ""
