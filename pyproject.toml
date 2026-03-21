@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "comfyui-lora-pipeline"
-version = "0.0.0"
+version = "1.0.0"
 description = "Area-based LoRA scheduling and area conditioning wrappers for ComfyUI."
 readme = "README.md"
 requires-python = ">=3.10"
