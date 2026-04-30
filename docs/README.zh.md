@@ -124,9 +124,14 @@
 **输出：**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**`areas_out` 详情：**
+
+`areas_out` 将已配置的区域列表作为结构化数据输出公开。每个条目包含通过 `Conditioning Pipeline (Set Area)` 在管道中定义的归一化坐标（`x`、`y`、`width`、`height`）和 `strength`。将 `areas_out` 连接到 [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio)，即可将您的调节区域自动镜像到 OpenPose 编辑器中——姿态放置将与您调节的确切区域对齐。此输出也可被接受区域元数据的任何其他扩展或节点使用，用于遮罩生成或区域感知的下游处理。
 
 **行为注意事项：**
-- 如果管道为空/无效，输出将回落到全局输入。
+- 如果管道为空/无效，输出将回落到全局输入，且 `areas_out` 为空列表。
 - 应用区域条目，然后对未覆盖区域应用默认组合通道。
 - `global_strength` 控制全球背景与局部区域竞争的强度。
 - 将 global_strength 推得太高会减少每个区域的调节影响并对图像质量产生负面影响。

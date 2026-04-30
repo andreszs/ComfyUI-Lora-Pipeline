@@ -124,9 +124,14 @@ Kombinieren Sie globale positive/negative Konditionierung mit der Bereichspipeli
 **Ausgaben:**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**Details zu `areas_out`:**
+
+`areas_out` gibt die Liste der konfigurierten Bereichsregionen als strukturierte Datenausgabe aus. Jeder Eintrag enthält die normalisierten Koordinaten (`x`, `y`, `width`, `height`) und `strength`, die über `Conditioning Pipeline (Set Area)` in der Pipeline definiert wurden. Verbinden Sie `areas_out` mit [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio), um Ihre Konditionierungsbereiche automatisch in den OpenPose-Editor zu spiegeln — die Pose-Platzierung wird sich an den genau konditionierten Regionen ausrichten. Dieser Ausgang kann auch von anderen Erweiterungen oder Knoten verwendet werden, die Bereichsmetadaten für die Maskengenerierung oder bereichsbewusste nachgelagerte Verarbeitung akzeptieren.
 
 **Hinweise zum Verhalten:**
-- Wenn die Pipeline leer/ungültig ist, greifen die Ausgaben auf die globalen Eingaben zurück.
+- Wenn die Pipeline leer/ungültig ist, greifen die Ausgaben auf die globalen Eingaben zurück, und `areas_out` ist eine leere Liste.
 - Wendet regionale Einträge an und anschließend einen Standard-Kombinationsdurchgang für nicht abgedeckte Regionen.
 - `global_strength` steuert, wie stark der globale Kontext mit lokalen Bereichen konkurriert.
 - Wenn Sie global_strength zu hoch einstellen, kann dies den Einfluss der bereichsspezifischen Konditionierung verringern und sich negativ auf die Bildqualität auswirken.

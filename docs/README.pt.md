@@ -124,9 +124,14 @@ Combine o condicionamento positivo/negativo global com o pipeline de área para 
 **Saídas:**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**Detalhes sobre `areas_out`:**
+
+`areas_out` expõe a lista de regiões de área configuradas como uma saída de dados estruturada. Cada entrada contém as coordenadas normalizadas (`x`, `y`, `width`, `height`) e `strength` definidas no pipeline via `Conditioning Pipeline (Set Area)`. Conecte `areas_out` ao [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio) para espelhar automaticamente suas áreas de condicionamento no editor OpenPose — o posicionamento das poses se alinhará com as regiões exatas que você condicionou. Esta saída também pode ser consumida por qualquer outra extensão ou nó que aceite metadados de área para geração de máscaras ou processamento posterior com reconhecimento de região.
 
 **Notas de comportamento:**
-- Se o pipeline estiver vazio/inválido, as saídas voltam para as entradas globais.
+- Se o pipeline estiver vazio/inválido, as saídas voltam para as entradas globais e `areas_out` é uma lista vazia.
 - Aplica entradas regionais e, em seguida, um passe combinado padrão para regiões descobertas.
 - `global_strength` controla a intensidade com que o contexto global compete com as áreas locais.
 - Pressionar global_strength muito alto pode reduzir a influência do condicionamento por área e impactar negativamente a qualidade da imagem.

@@ -124,9 +124,14 @@
 **出力:**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**`areas_out` の詳細:**
+
+`areas_out` は、設定されたエリア領域のリストを構造化データ出力として公開します。各エントリには、`Conditioning Pipeline (Set Area)` を通じてパイプラインで定義された正規化座標（`x`、`y`、`width`、`height`）と `strength` が含まれています。`areas_out` を [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio) に接続すると、コンディショニングエリアを OpenPose エディターに自動的にミラーリングできます。ポーズの配置は、コンディショニングした正確な領域に合わせて整列されます。この出力は、マスク生成や領域認識型のダウンストリーム処理のためにエリアメタデータを受け入れる他の拡張機能やノードでも使用できます。
 
 **行動メモ:**
-- パイプラインが空または無効な場合、出力はグローバル入力にフォールバックします。
+- パイプラインが空または無効な場合、出力はグローバル入力にフォールバックし、`areas_out` は空のリストになります。
 - 地域エントリを適用してから、カバーされていない地域のデフォルトの結合パスを適用します。
 - `global_strength` は、グローバル コンテキストがローカル エリアとどの程度競合するかを制御します。
 - global_strength を高くしすぎると、エリアごとのコンディショニングの影響が減少し、画質に悪影響を及ぼす可能性があります。

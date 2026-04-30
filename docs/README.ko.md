@@ -124,9 +124,14 @@ ComfyUI에 대한 영역 기반 LoRA 조절 래퍼 및 LoRA 예약 노드.
 **출력:**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**`areas_out` 세부사항:**
+
+`areas_out`은 구성된 영역 목록을 구조화된 데이터 출력으로 노출합니다. 각 항목에는 `Conditioning Pipeline (Set Area)`를 통해 파이프라인에서 정의된 정규화된 좌표(`x`, `y`, `width`, `height`)와 `strength`가 포함됩니다. `areas_out`을 [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio)에 연결하면 조건화 영역을 OpenPose 편집기에 자동으로 미러링할 수 있습니다. 포즈 배치는 조건화한 정확한 영역에 맞게 정렬됩니다. 이 출력은 마스크 생성 또는 영역 인식 다운스트림 처리를 위한 영역 메타데이터를 허용하는 다른 확장 또는 노드에서도 사용할 수 있습니다.
 
 **행동 참고사항:**
-- 파이프라인이 비어 있거나 유효하지 않은 경우 출력은 전역 입력으로 대체됩니다.
+- 파이프라인이 비어 있거나 유효하지 않은 경우 출력은 전역 입력으로 대체되고 `areas_out`은 빈 목록이 됩니다.
 - 지역 항목을 적용한 다음, 발견되지 않은 지역에 대한 기본 통합 패스를 적용합니다.
 - `global_strength`은 글로벌 컨텍스트가 로컬 영역과 얼마나 강력하게 경쟁하는지 제어합니다.
 - global_strength을(를) 너무 높이면 영역별 조정 영향이 줄어들고 이미지 품질에 부정적인 영향을 미칠 수 있습니다.

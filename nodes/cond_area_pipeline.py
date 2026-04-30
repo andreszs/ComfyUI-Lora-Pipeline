@@ -84,8 +84,8 @@ class ConditioningPipelineCombine:
     NODE_ID = "ConditioningPipelineCombine"
     NODE_NAME = "Conditioning Pipeline (Combine)"
     CATEGORY = "LoRA Pipeline/Conditioning"
-    RETURN_TYPES = ("CONDITIONING", "CONDITIONING")
-    RETURN_NAMES = ("positive_out", "negative_out")
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "CONDITIONING_AREAS")
+    RETURN_NAMES = ("positive_out", "negative_out", "areas_out")
     FUNCTION = "run"
 
     BASE_RES = 64
@@ -114,8 +114,19 @@ class ConditioningPipelineCombine:
             if cond is not None:
                 valid.append(item)
 
+        areas_list = [
+            {
+                "x": float(item["x"]),
+                "y": float(item["y"]),
+                "width": float(item["width"]),
+                "height": float(item["height"]),
+                "strength": float(item.get("strength", 1.0)),
+            }
+            for item in valid
+        ]
+
         if not valid:
-            return (global_positive, global_negative)
+            return (global_positive, global_negative, [])
 
         graph = GraphBuilder()
 
@@ -179,6 +190,6 @@ class ConditioningPipelineCombine:
         )
 
         return {
-            "result": (final.out(0), final.out(1)),
+            "result": (final.out(0), final.out(1), areas_list),
             "expand": graph.finalize(),
         }

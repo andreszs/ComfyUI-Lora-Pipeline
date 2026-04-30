@@ -124,9 +124,14 @@ Combine global positive/negative conditioning with the area pipeline for region-
 **Outputs:**
 - `positive_out` (`CONDITIONING`)
 - `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**`areas_out` details:**
+
+`areas_out` exposes the list of configured area regions as a structured data output. Each entry contains the normalized coordinates (`x`, `y`, `width`, `height`) and `strength` that were defined in the pipeline via `Conditioning Pipeline (Set Area)`. Connect `areas_out` to [ComfyUI-OpenPose-Studio](https://github.com/andreszs/comfyui-openpose-studio) to automatically mirror your conditioning areas into the OpenPose editor — pose placement will align with the exact regions you conditioned. This output can also be consumed by any other extension or node that accepts area metadata for mask generation or region-aware downstream processing.
 
 **Behavior notes:**
-- If the pipeline is empty/invalid, outputs fall back to the global inputs.
+- If the pipeline is empty/invalid, outputs fall back to the global inputs and `areas_out` is an empty list.
 - Applies regional entries, then a default combine pass for uncovered regions.
 - `global_strength` controls how strongly global context competes with local areas.
 - Pushing global_strength too high can reduce per-area conditioning influence and negatively impact image quality.
