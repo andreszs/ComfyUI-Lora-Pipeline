@@ -19,5 +19,5 @@ Documentation = "https://github.com/andreszs/comfyui-lora-pipeline#readme"
 [tool.comfy]
 PublisherId = "andreszs"
 DisplayName = "LoRA Pipeline"
-Icon = ""
+Icon = "https://raw.githubusercontent.com/andreszs/comfyui-lora-pipeline/main/assets/icon.svg"
 Banner = "https://raw.githubusercontent.com/andreszs/comfyui-lora-pipeline/refs/heads/main/assets/banner_112.gif"
