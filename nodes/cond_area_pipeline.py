@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 
@@ -78,6 +80,17 @@ class ConditioningPipelineCombine:
             },
             "optional": {
                 "global_strength": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 10.0, "step": 0.05}),
+                "fast_mode": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "Faster full-canvas mode. Concatenates the global positive "
+                            "into every regional positive and avoids a separate global "
+                            "UNet pass. This changes image generation semantics."
+                        ),
+                    },
+                ),
             },
         }
 
@@ -100,7 +113,45 @@ class ConditioningPipelineCombine:
         mask[y_px : y_px + h_px, x_px : x_px + w_px] = 1.0
         return mask.unsqueeze(0)
 
-    def run(self, global_positive, global_negative, pipeline, global_strength=0.3):
+    @staticmethod
+    def _make_fast_mask(x, y, width, height, res):
+        mask = torch.zeros(res, res)
+        x_start = max(0, min(res, math.floor(x * res)))
+        y_start = max(0, min(res, math.floor(y * res)))
+        x_end = max(x_start, min(res, math.ceil((x + width) * res)))
+        y_end = max(y_start, min(res, math.ceil((y + height) * res)))
+        mask[y_start:y_end, x_start:x_end] = 1.0
+        return mask.unsqueeze(0)
+
+    @staticmethod
+    def _concat_global(conditioning, global_positive, global_strength):
+        if global_strength <= 0.0 or not conditioning or not global_positive:
+            return conditioning
+
+        global_tokens = global_positive[0][0] * global_strength
+        combined = []
+        for entry in conditioning:
+            tokens = torch.cat((entry[0], global_tokens), dim=1)
+            combined.append([tokens, entry[1].copy()])
+        return combined
+
+    @staticmethod
+    def _masks_cover_canvas(masks):
+        if not masks:
+            return False
+        coverage = torch.zeros_like(masks[0], dtype=torch.bool)
+        for mask in masks:
+            coverage |= mask > 0
+        return bool(torch.all(coverage).item())
+
+    def run(
+        self,
+        global_positive,
+        global_negative,
+        pipeline,
+        global_strength=0.3,
+        fast_mode=False,
+    ):
         from comfy_execution.graph_utils import GraphBuilder
 
         global_strength = round(float(global_strength), 2)
@@ -129,6 +180,51 @@ class ConditioningPipelineCombine:
             return (global_positive, global_negative, [])
 
         graph = GraphBuilder()
+
+        if fast_mode:
+            masks = []
+            acc_pos = None
+
+            for item in valid:
+                mask = self._make_fast_mask(
+                    item["x"], item["y"], item["width"], item["height"], self.BASE_RES,
+                )
+                masks.append(mask)
+                regional_positive = self._concat_global(
+                    item["conditioning"], global_positive, global_strength,
+                )
+
+                if acc_pos is None:
+                    acc = graph.node(
+                        "ConditioningSetProperties",
+                        cond_NEW=regional_positive,
+                        strength=item.get("strength", 1.0),
+                        set_cond_area="default",
+                        mask=mask,
+                    )
+                else:
+                    acc = graph.node(
+                        "ConditioningSetPropertiesAndCombine",
+                        cond=acc_pos,
+                        cond_NEW=regional_positive,
+                        strength=item.get("strength", 1.0),
+                        set_cond_area="default",
+                        mask=mask,
+                    )
+                acc_pos = acc.out(0)
+
+            if not self._masks_cover_canvas(masks):
+                fallback = graph.node(
+                    "ConditioningSetDefaultCombine",
+                    cond=acc_pos,
+                    cond_DEFAULT=global_positive,
+                )
+                acc_pos = fallback.out(0)
+
+            return {
+                "result": (acc_pos, global_negative, areas_list),
+                "expand": graph.finalize(),
+            }
 
         # First entry: set properties on the regional positive conditioning.
         # The negative conditioning is global and identical for every region, so
