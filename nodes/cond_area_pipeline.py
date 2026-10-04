@@ -130,66 +130,58 @@ class ConditioningPipelineCombine:
 
         graph = GraphBuilder()
 
-        # First entry: PairConditioningSetProperties (no previous combined state yet)
+        # First entry: set properties on the regional positive conditioning.
+        # The negative conditioning is global and identical for every region, so
+        # evaluating masked copies of it would repeat the same UNet prediction.
         first = valid[0]
         mask_0 = self._make_mask(
             first["x"], first["y"], first["width"], first["height"], self.BASE_RES,
         )
         acc = graph.node(
-            "PairConditioningSetProperties",
-            positive_NEW=first["conditioning"],
-            negative_NEW=global_negative,
+            "ConditioningSetProperties",
+            cond_NEW=first["conditioning"],
             strength=first.get("strength", 1.0),
             set_cond_area="default",
             mask=mask_0,
         )
         acc_pos = acc.out(0)
-        acc_neg = acc.out(1)
 
-        # Entries siguientes: PairConditioningSetPropertiesAndCombine
+        # Following entries: combine regional positive conditionings only.
         for item in valid[1:]:
             mask_i = self._make_mask(
                 item["x"], item["y"], item["width"], item["height"], self.BASE_RES,
             )
             acc = graph.node(
-                "PairConditioningSetPropertiesAndCombine",
-                positive=acc_pos,
-                negative=acc_neg,
-                positive_NEW=item["conditioning"],
-                negative_NEW=global_negative,
+                "ConditioningSetPropertiesAndCombine",
+                cond=acc_pos,
+                cond_NEW=item["conditioning"],
                 strength=item.get("strength", 1.0),
                 set_cond_area="default",
                 mask=mask_i,
             )
             acc_pos = acc.out(0)
-            acc_neg = acc.out(1)
 
         # Global como entrada full-image con strength controlable
         if global_strength > 0.0:
             global_mask = self._make_mask(0.0, 0.0, 1.0, 1.0, self.BASE_RES)
             acc = graph.node(
-                "PairConditioningSetPropertiesAndCombine",
-                positive=acc_pos,
-                negative=acc_neg,
-                positive_NEW=global_positive,
-                negative_NEW=global_negative,
+                "ConditioningSetPropertiesAndCombine",
+                cond=acc_pos,
+                cond_NEW=global_positive,
                 strength=global_strength,
                 set_cond_area="default",
                 mask=global_mask,
             )
             acc_pos = acc.out(0)
-            acc_neg = acc.out(1)
 
         # Default fallback (safety net para pixeles sin cubrir)
         final = graph.node(
-            "PairConditioningSetDefaultCombine",
-            positive=acc_pos,
-            negative=acc_neg,
-            positive_DEFAULT=global_positive,
-            negative_DEFAULT=global_negative,
+            "ConditioningSetDefaultCombine",
+            cond=acc_pos,
+            cond_DEFAULT=global_positive,
         )
 
         return {
-            "result": (final.out(0), final.out(1), areas_list),
+            "result": (final.out(0), global_negative, areas_list),
             "expand": graph.finalize(),
         }
