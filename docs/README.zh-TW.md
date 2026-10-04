@@ -30,6 +30,7 @@
 - 🧩 [可選依賴項](#optional-dependencies)
 - 🧭 [多區域範例工作流程](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [圖庫](#gallery)
+- 🚀 [更新日誌](#changelog)
 - 💙 [資金與支持](#funding--support)
 - 📄 [許可證](#license)
 
@@ -121,6 +122,7 @@
 - `global_negative`（`CONDITIONING`，必填）
 - `pipeline`（`CONDITIONING_PIPELINE`，必填）
 - `global_strength`（`FLOAT`，預設 `0.3`）
+- `fast_mode`（`BOOLEAN`，預設 `false`）
 
 **輸出：**
 - `positive_out` (`CONDITIONING`)
@@ -137,6 +139,10 @@
 - `global_strength` 控制全球背景與局部區域競爭的強度。
 - 將 global_strength 推得太高會減少每個區域的調節效果並對影像品質產生負面影響。
 - 好的結果通常來自於平衡全局強度與單位面積強度和 LoRA 強度，而不是最大化所有值。
+- `fast_mode` 是可選功能，預設關閉，因此現有工作流程會維持原有行為。
+- 啟用 Fast Mode 後，全域正向調節會連接到每個區域正向調節中。`global_strength` 不會被忽略；它只縮放新增的全域部分。
+- 當設定的區域覆蓋整個畫布時，Fast Mode 會省略獨立的全域正向計算。若覆蓋不完整，則會保留全域 fallback，因此加速幅度較小。
+- Fast Mode 與標準路徑在數學上並不完全相同，可能改變提示詞平衡、構圖或主體保真度。在正式工作流程中採用前請比較結果。
 
 **常見錯誤：**
 - 僅饋送一種調節流，而不是同時饋送正流和負流。
@@ -252,6 +258,16 @@
 | [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **調節管道 - 具有 ControlNet 和樣式的多區域**<br><br>演示多區域和多個 LoRA，並將每個區域的樣式獨立應用於每個區域。 <br><br>需要 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) 和 [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>此工作流程使用每個區域的樣式，這表示每個區域都有自己單獨配置的樣式。透過在 ControlNet 之前連接 Styler 節點也可以實現全域樣式設定。 |
 
 查看[這篇文章](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/)，了解同時使用多個 conditioning area、OpenPose、ControlNet 和 Styler 的完整 workflow。
+
+---
+
+## <a id="changelog"></a>更新日誌
+
+### 1.1.4
+
+- 區域調節最佳化將一個雙區域 SDXL 測試工作流程的實測生成時間從約 144 秒降至 70 秒，渲染時間減少約 51%。
+- 可選的 Fast Mode 在完整覆蓋的等效測試中約 54 秒完成，與先前的實作相比最多減少約 63% 的時間。
+- 效能會依 GPU、模型、解析度、sampler、ControlNet 設定及區域覆蓋情況而異。Fast Mode 也可能產生視覺差異，因此預設關閉。
 
 ---
 

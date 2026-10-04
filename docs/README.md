@@ -29,6 +29,7 @@ Area-based LoRA conditioning wrappers and LoRA Scheduling nodes for ComfyUI.
 - 🧩 [Optional Dependencies](#optional-dependencies)
 - 🧭 [Multi-area example workflow](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [Gallery](#gallery)
+- 🚀 [Changelog](#changelog)
 - 💙 [Funding & Support](#funding--support)
 - 📄 [License](#license)
 
@@ -120,6 +121,7 @@ Combine global positive/negative conditioning with the area pipeline for region-
 - `global_negative` (`CONDITIONING`, required)
 - `pipeline` (`CONDITIONING_PIPELINE`, required)
 - `global_strength` (`FLOAT`, default `0.3`)
+- `fast_mode` (`BOOLEAN`, default `false`)
 
 **Outputs:**
 - `positive_out` (`CONDITIONING`)
@@ -136,6 +138,10 @@ Combine global positive/negative conditioning with the area pipeline for region-
 - `global_strength` controls how strongly global context competes with local areas.
 - Pushing global_strength too high can reduce per-area conditioning influence and negatively impact image quality.
 - Good results generally come from balancing global strength with per-area strength and LoRA strength rather than maximizing all values.
+- `fast_mode` is opt-in and disabled by default, so existing workflows keep their previous behavior.
+- When enabled, Fast Mode concatenates the global positive conditioning into every regional positive conditioning. `global_strength` is not ignored: it scales only the appended global portion.
+- When the configured regions cover the full canvas, Fast Mode avoids a separate global positive pass. If coverage is incomplete, the global fallback is retained for correctness, so the speedup will be smaller.
+- Fast Mode is not mathematically identical to the standard path and may change prompt balance, composition, or subject fidelity. Compare results before adopting it for production workflows.
 
 **Common mistakes:**
 - Feeding only one conditioning stream instead of both positive and negative.
@@ -251,6 +257,16 @@ Global styling means applying `Styler Pipeline` once to the whole image, in addi
 | [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline — Multi Areas with ControlNet & Styling**<br><br>Demonstrates multi areas and multiple LoRAs with per-area styling applied to each region independently.<br><br>Requires [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) and [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>This workflow uses per-area styling, meaning each area has its own styles configured separately. Global styling is also possible by connecting the Styler node right before ControlNet. |
 
 See [this post](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/) for a complete workflow combining multiple conditioning areas, OpenPose, ControlNet and Styler all used together.
+
+---
+
+## Changelog
+
+### 1.1.4
+
+- Optimized regional conditioning reduced measured generation time from about 144 seconds to 70 seconds in a tested two-region SDXL workflow—approximately 51% less render time.
+- Added the optional Fast Mode. In an equivalent full-coverage test it completed in about 54 seconds—up to approximately 63% less render time than the previous implementation.
+- Performance varies by GPU, model, resolution, sampler, ControlNet setup, and regional coverage. Fast Mode can also produce visual differences, so it remains disabled by default.
 
 ---
 

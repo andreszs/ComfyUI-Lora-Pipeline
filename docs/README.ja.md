@@ -29,6 +29,7 @@
 - 🧩 [オプションの依存関係](#optional-dependencies)
 - 🧭 [マルチエリアのワークフロー例](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [ギャラリー](#gallery)
+- 🚀 [変更履歴](#changelog)
 - 💙 [資金とサポート](#funding--support)
 - 📄 [ライセンス](#license)
 
@@ -120,6 +121,7 @@
 - `global_negative` (`CONDITIONING`、必須)
 - `pipeline` (`CONDITIONING_PIPELINE`、必須)
 - `global_strength` (`FLOAT`、デフォルトは `0.3`)
+- `fast_mode` (`BOOLEAN`、デフォルトは `false`)
 
 **出力:**
 - `positive_out` (`CONDITIONING`)
@@ -136,6 +138,10 @@
 - `global_strength` は、グローバル コンテキストがローカル エリアとどの程度競合するかを制御します。
 - global_strength を高くしすぎると、エリアごとのコンディショニングの影響が減少し、画質に悪影響を及ぼす可能性があります。
 - 通常、良い結果は、すべての値を最大化するのではなく、全体的な強度とエリアごとの強度および LoRA の強度のバランスを取ることで得られます。
+- `fast_mode` は任意で、デフォルトでは無効です。そのため、既存のワークフローは以前の動作を維持します。
+- Fast Mode を有効にすると、グローバルなポジティブコンディショニングが各地域のポジティブコンディショニングに連結されます。`global_strength` は無視されず、追加されたグローバル部分だけをスケーリングします。
+- 設定された地域がキャンバス全体を覆う場合、Fast Mode は独立したグローバルポジティブパスを省略します。カバーが不完全な場合はグローバルフォールバックを維持するため、速度向上は小さくなります。
+- Fast Mode は標準パスと数学的に同一ではなく、プロンプトのバランス、構図、被写体の再現性が変わる可能性があります。本番ワークフローに採用する前に結果を比較してください。
 
 **よくある間違い:**
 - ポジティブとネガティブの両方ではなく、1 つのコンディショニング ストリームのみを供給します。
@@ -251,6 +257,16 @@ ComfyUI が使用するのと同じ Python 環境に、必要なものだけを�
 | [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **コンディショニング パイプライン — ControlNet とスタイリングを使用したマルチエリア**<br><br>各領域に個別に適用されるエリアごとのスタイルを使用したマルチエリアと複数の LoRA を示します。<br><br>[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) と[comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>このワークフローはエリアごとのスタイル設定を使用します。つまり、各エリアには個別に構成された独自のスタイルがあります。 ControlNet の直前に Styler ノードを接続することで、グローバル スタイル設定も可能です。 |
 
 複数の conditioning area、OpenPose、ControlNet、Styler をすべて同時に使用したワークフローは、[こちらの記事](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/)でご覧いただけます。
+
+---
+
+## <a id="changelog"></a>変更履歴
+
+### 1.1.4
+
+- 地域コンディショニングの最適化により、2 地域の SDXL テストワークフローで、測定された生成時間が約 144 秒から 70 秒に短縮されました。レンダリング時間は約 51% 減少しました。
+- 任意の Fast Mode は、全体をカバーする同等のテストを約 54 秒で完了しました。以前の実装と比べて最大約 63% の時間短縮です。
+- 性能は GPU、モデル、解像度、sampler、ControlNet 設定、地域のカバー範囲によって変わります。Fast Mode は視覚的な差も生じる可能性があるため、デフォルトでは無効です。
 
 ---
 

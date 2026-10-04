@@ -29,6 +29,7 @@ Wrappers de condicionamiento LoRA basados en áreas y nodos de planificación Lo
 - 🧩 [Dependencias opcionales](#optional-dependencies)
 - 🧭 [Workflow de ejemplo con múltiples áreas](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [Galería](#gallery)
+- 🚀 [Registro de cambios](#changelog)
 - 💙 [Financiamiento y apoyo](#funding--support)
 - 📄 [Licencia](#license)
 
@@ -120,6 +121,7 @@ Combinar el condicionamiento global positivo/negativo con el pipeline del área 
 - `global_negative` (`CONDITIONING`, requerido)
 - `pipeline` (`CONDITIONING_PIPELINE`, requerido)
 - `global_strength` (`FLOAT`, predeterminado `0.3`)
+- `fast_mode` (`BOOLEAN`, predeterminado `false`)
 
 **Salidas:**
 - `positive_out` (`CONDITIONING`)
@@ -136,6 +138,10 @@ Combinar el condicionamiento global positivo/negativo con el pipeline del área 
 - `global_strength` controla la fuerza con la que el contexto global compite con las áreas locales.
 - Presionar global_strength demasiado alto puede reducir la influencia del acondicionamiento por área y afectar negativamente la calidad de la imagen.
 - Los buenos resultados generalmente provienen de equilibrar la fuerza global con la fuerza por área y la fuerza LoRA en lugar de maximizar todos los valores.
+- `fast_mode` es opcional y viene desactivado, por lo que los workflows existentes conservan su comportamiento anterior.
+- Al activarlo, Fast Mode concatena el condicionamiento positivo global dentro de cada condicionamiento positivo regional. `global_strength` no se ignora: escala únicamente la parte global agregada.
+- Cuando las regiones configuradas cubren todo el canvas, Fast Mode evita un pase positivo global independiente. Si la cobertura es incompleta, conserva el fallback global para mantener un resultado correcto, por lo que la mejora de velocidad será menor.
+- Fast Mode no es matemáticamente idéntico a la ruta estándar y puede cambiar el equilibrio del prompt, la composición o la fidelidad de los sujetos. Compare los resultados antes de adoptarlo en workflows de producción.
 
 **Errores comunes:**
 - Alimentar solo una corriente condicionante en lugar de positiva y negativa.
@@ -251,6 +257,16 @@ El estilo global significa aplicar `Styler Pipeline` una vez a toda la imagen, a
 | [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline — múltiples áreas con ControlNet y Styling**<br><br>Demuestra múltiples áreas y múltiples LoRA con estilo por área aplicado a cada región de forma independiente.<br><br>Requiere [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) y [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>Este workflow utiliza estilo por área, lo que significa que cada área tiene sus propios estilos configurados por separado. El estilo global también es posible conectando el nodo Styler justo antes de ControlNet. |
 
 En [este post](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/) podés ver un workflow completo que combina múltiples áreas de conditioning, OpenPose, ControlNet y Styler, todos usados al mismo tiempo.
+
+---
+
+## <a id="changelog"></a>Registro de cambios
+
+### 1.1.4
+
+- La optimización del condicionamiento regional redujo el tiempo medido de generación de aproximadamente 144 a 70 segundos en un workflow SDXL de dos regiones: cerca de un 51% menos tiempo de renderizado.
+- Se agregó el Fast Mode opcional. En una prueba equivalente con cobertura completa terminó en aproximadamente 54 segundos: hasta cerca de un 63% menos tiempo que la implementación anterior.
+- El rendimiento varía según GPU, modelo, resolución, sampler, configuración de ControlNet y cobertura regional. Fast Mode también puede producir diferencias visuales, por lo que permanece desactivado por defecto.
 
 ---
 
