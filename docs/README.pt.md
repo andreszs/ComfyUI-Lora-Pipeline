@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
-  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
+  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/ComfyUI-Lora-Pipeline?v=1.2.0" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
 <br />
