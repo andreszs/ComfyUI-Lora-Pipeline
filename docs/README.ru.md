@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version" />
+  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
@@ -25,19 +25,23 @@
 - 🔧 [Узлы](#nodes)
   - [Conditioning Pipeline (Set Area)](#conditioning-pipeline-set-area)
   - [Conditioning Pipeline (Combine)](#conditioning-pipeline-combine)
+  - [Conditioning Pipeline Combine V2](#conditioning-pipeline-combine-v2)
+  - [Masked Area Conditioning Combine](#masked-area-conditioning-combine)
   - [ScheduledLoRALoader](#scheduledloraloader)
 - 🧩 [Необязательные зависимости](#optional-dependencies)
 - 🧭 [Пример workflow с несколькими зонами](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [Галерея](#gallery)
-- 🚀 [История изменений](#changelog)
 - 💙 [Финансирование и поддержка](#funding--support)
 - 📄 [Лицензия](#license)
+- 🚀 [История изменений](../CHANGELOG.md)
 
 ---
 
 ## <a id="features"></a>Функции
 
 - Конвейер кондиционирования на основе территории для подсказок по нескольким предметам и регионам.
+- Путь V2 сохраняет полный глобальный prompt в каждом регионе без настраиваемой глобальной силы.
+- Региональное кондиционирование по готовым маскам субъектов или зон.
 - Плановый контроль силы LoRA в одном узле с выводом предварительного просмотра кривой.
 - Для согласованной многопредметной композиции в нескольких областях настоятельно рекомендуется **ControlNet + OpenPose** через [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio).
 - Без ControlNet/OpenPose композиция из нескольких предметов и нескольких областей часто бывает непоследовательной и может потребовать много повторных попыток.
@@ -50,6 +54,7 @@
 ### Требования
 - ComfyUI (последняя сборка)
 - Python 3.10+
+- Устанавливаемая зависимость: `scipy`
 - Необязательные зависимости для каждого узла: `matplotlib`
 
 ### Шаги
@@ -121,7 +126,6 @@
 - `global_negative` (`CONDITIONING`, обязательно)
 - `pipeline` (`CONDITIONING_PIPELINE`, обязательно)
 - `global_strength` (`FLOAT`, по умолчанию `0.3`)
-- `fast_mode` (`BOOLEAN`, по умолчанию `false`)
 
 **Выходы:**
 - `positive_out` (`CONDITIONING`)
@@ -138,15 +142,57 @@
 - `global_strength` контролирует, насколько сильно глобальный контекст конкурирует с локальными областями.
 - Слишком высокое значение global_strength может уменьшить влияние обработки каждой области и отрицательно повлиять на качество изображения.
 - Хорошие результаты обычно достигаются за счет баланса глобальной силы с силой по регионам и силы LoRA, а не за счет максимизации всех значений.
-- `fast_mode` является необязательным и по умолчанию отключён, поэтому существующие workflows сохраняют прежнее поведение.
-- При включении Fast Mode глобальное положительное кондиционирование добавляется к каждому региональному положительному кондиционированию. `global_strength` не игнорируется: он масштабирует только добавленную глобальную часть.
-- Если настроенные регионы покрывают весь холст, Fast Mode исключает отдельный глобальный положительный проход. При неполном покрытии сохраняется глобальный fallback, поэтому ускорение будет меньше.
-- Fast Mode математически не идентичен стандартному пути и может изменить баланс prompt, композицию или точность субъектов. Сравните результаты перед использованием в production workflows.
+- Оптимизированный путь всегда активен: глобальное positive-кондиционирование добавляется к каждому региональному, а `global_strength` масштабирует только добавленную глобальную часть.
+- `fast_mode` удалён, поскольку его отключённый устаревший путь обходил кондиционирование LoRA по областям.
+- При полном покрытии узел исключает отдельный глобальный positive-проход; при неполном покрытии сохраняет глобальный fallback.
 
 **Распространённые ошибки:**
 - Подача только одного обуславливающего потока вместо одновременно положительного и отрицательного.
 - Перегрузка `global_strength` и размытие деталей области.
 - Создавать записи области, но забывать подключать объединённые выходы к пути сэмплера.
+
+---
+
+### <a id="conditioning-pipeline-combine-v2"></a>Conditioning Pipeline Combine V2
+
+Объединяет цепочку прямоугольных областей с полным глобальным positive-контекстом в каждом региональном prompt. В V2 нет `global_strength`; глобальные positive/negative и метаданные областей сохраняются.
+
+![Conditioning Pipeline Combine V2](../assets/conditioning_pipeline_combine_v2.png)
+
+**Кратко:** та же цепочка Set Area, полный глобальный контекст в каждой области, динамический fallback вне областей и вывод `areas_out`.
+
+**Входы:** `global_positive`, `global_negative` (`CONDITIONING`), `pipeline` (`CONDITIONING_PIPELINE`).
+
+**Выходы:** `positive_out`, `negative_out` (`CONDITIONING`), `areas_out` (`CONDITIONING_AREAS`).
+
+**Поведение:**
+- Пустой/недопустимый pipeline возвращает глобальные conditioning и пустой список областей.
+- Каждый регион получает полный глобальный positive-контекст; `strength` Set Area по-прежнему управляет маской.
+- Глобальный positive остаётся fallback для непокрытых пикселей.
+
+**Частые ошибки:** ожидать `global_strength`, пропускать глобальный positive или не подключать последний Set Area к `pipeline`.
+
+---
+
+### <a id="masked-area-conditioning-combine"></a>Masked Area Conditioning Combine
+
+Создаёт региональное кондиционирование из масок вместо прямоугольных координат.
+
+![Masked Area Conditioning Combine](../assets/masked_area_conditioning_combine.png)
+
+**Кратко:** до четырёх пар conditioning/mask, фильтрация связных областей, необязательный стилевой контекст и fallback для непокрытых пикселей.
+
+**Входы:**
+- `global_conditioning`, `conditioning_1` (`CONDITIONING`), `mask_1` (`MASK`) — обязательно
+- `area_strength` (`FLOAT`, `0.5`)
+- `conditioning_2`–`conditioning_4`, `mask_2`–`mask_4`, `style_conditioning` — необязательно
+- `max_regions_per_mask` (`INT`, `10`), `min_region_area` (`FLOAT`, `0.001`)
+
+**Выходы:** `area_conditioning`, `chain_debug_opt` (`CONDITIONING`).
+
+**Поведение:** неполные пары и слишком малые компоненты игнорируются; при превышении лимита остаются крупнейшие; без допустимых регионов возвращается глобальное conditioning.
+
+**Частые ошибки:** неполные пары, слишком высокий `min_region_area` и ожидание включения значений маски ≤ `0.5`.
 
 ---
 
@@ -253,20 +299,11 @@
 
 | Предварительный просмотр | Описание |
 |---------|-------------|
-| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Конвейер подготовки — несколько областей с ControlNet OpenPose**<br><br>Демонстрирует несколько вертикальных областей с несколькими LoRA без кровотечения LoRA с использованием ControlNet OpenPose.<br><br>Требуется [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
-| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Конвейер подготовки — несколько областей с ControlNet и стилями**<br><br>Демонстрирует несколько областей и несколько LoRA со стилем для каждой области, применяемым к каждой области независимо.<br><br>Требуются [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) и [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>Этот рабочий процесс использует стили для каждой области, то есть каждая область имеет свои собственные стили, настроенные отдельно. Глобальное оформление также возможно, подключив узел Styler непосредственно перед ControlNet. |
+| [![Зимне-весенний пейзаж](../workflows/winter_spring_landscape_v2.png)](../workflows/winter_spring_landscape_v2.png) | **Conditioning Pipeline V2 — Зима / весна**<br><br>Единый пейзаж: зима слева и весна справа, без ControlNet. Перетащите PNG в ComfyUI; также доступен [workflow JSON](../workflows/winter_spring_landscape_v2.json). |
+| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline V2 — несколько областей с ControlNet OpenPose**<br><br>Несколько вертикальных областей с отдельными LoRA персонажей без LoRA bleeding. Перетащите PNG в ComfyUI, чтобы загрузить встроенный workflow V2.<br><br>Требуется [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
+| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline V2 — выборочный стиль областей**<br><br>Inuyasha слева остаётся без стиля, а Styler Pipeline применяет Space Opera Anime, Space Marine Armor и Neon Blue только к Ayame справа. PNG содержит полный workflow.<br><br>Требуются [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) и [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline). Styler можно подключать только к нужным областям. |
 
 В [этой статье](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/) можно увидеть полный workflow, объединяющий несколько conditioning area, OpenPose, ControlNet и Styler, используемых одновременно.
-
----
-
-## <a id="changelog"></a>История изменений
-
-### 1.1.4
-
-- Оптимизация регионального кондиционирования сократила измеренное время генерации примерно со 144 до 70 секунд в протестированном SDXL workflow с двумя регионами — примерно на 51% меньше времени рендеринга.
-- Необязательный Fast Mode завершил эквивалентный тест с полным покрытием примерно за 54 секунды — до 63% меньше времени по сравнению с предыдущей реализацией.
-- Производительность зависит от GPU, модели, разрешения, sampler, конфигурации ControlNet и покрытия регионов. Fast Mode также может давать визуальные отличия, поэтому по умолчанию он отключён.
 
 ---
 
@@ -309,7 +346,7 @@
     </td>
     <td align="center" style="width: 33.33%; padding: 20px;">
       <div>
-        <h4 style="margin: 8px 0;">USDC (только Arbitrum ⚠️)</h4>
+        <h4 style="margin: 8px 0;">USDC (только Arbitrum)</h4>
         <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
           <img src="../assets/badge_usdc.svg" alt="USDC Badge" width="180" />
         </a>
@@ -318,33 +355,6 @@
     </td>
   </tr>
 </table>
-
-<details>
-  <summary>Предпочитаете сканирование? Показать QR-коды</summary>
-  <br />
-  <table style="width: 100%; table-layout: fixed;">
-    <tr>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>Ko-fi</strong><br />
-        <a href="https://ko-fi.com/D1D716OLPM" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-kofi.svg" alt="Ko-fi QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>PayPal</strong><br />
-        <a href="https://www.paypal.com/ncp/payment/GEEM324PDD9NC" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-paypal.svg" alt="PayPal QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>USDC (Arbitrum) ⚠️</strong><br />
-        <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-usdc.svg" alt="USDC (Arbitrum) QR Code" width="200" />
-        </a>
-      </td>
-    </tr>
-  </table>
-</details>
 
 <a id="usdc-address"></a>
 <details>
@@ -366,3 +376,5 @@
 
 **Поддерживает:** andreszs
 **Статус:** Активная разработка
+
+---

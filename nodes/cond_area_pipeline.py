@@ -80,17 +80,6 @@ class ConditioningPipelineCombine:
             },
             "optional": {
                 "global_strength": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 10.0, "step": 0.05}),
-                "fast_mode": (
-                    "BOOLEAN",
-                    {
-                        "default": False,
-                        "tooltip": (
-                            "Faster full-canvas mode. Concatenates the global positive "
-                            "into every regional positive and avoids a separate global "
-                            "UNet pass. This changes image generation semantics."
-                        ),
-                    },
-                ),
             },
         }
 
@@ -102,16 +91,6 @@ class ConditioningPipelineCombine:
     FUNCTION = "run"
 
     BASE_RES = 64
-
-    @staticmethod
-    def _make_mask(x, y, width, height, res):
-        mask = torch.zeros(res, res)
-        x_px = int(x * res)
-        y_px = int(y * res)
-        w_px = int(width * res)
-        h_px = int(height * res)
-        mask[y_px : y_px + h_px, x_px : x_px + w_px] = 1.0
-        return mask.unsqueeze(0)
 
     @staticmethod
     def _make_fast_mask(x, y, width, height, res):
@@ -150,7 +129,6 @@ class ConditioningPipelineCombine:
         global_negative,
         pipeline,
         global_strength=0.3,
-        fast_mode=False,
     ):
         from comfy_execution.graph_utils import GraphBuilder
 
@@ -181,103 +159,136 @@ class ConditioningPipelineCombine:
 
         graph = GraphBuilder()
 
-        if fast_mode:
-            masks = []
-            acc_pos = None
+        masks = []
+        acc_pos = None
 
-            for item in valid:
-                mask = self._make_fast_mask(
-                    item["x"], item["y"], item["width"], item["height"], self.BASE_RES,
-                )
-                masks.append(mask)
-                regional_positive = self._concat_global(
-                    item["conditioning"], global_positive, global_strength,
-                )
-
-                if acc_pos is None:
-                    acc = graph.node(
-                        "ConditioningSetProperties",
-                        cond_NEW=regional_positive,
-                        strength=item.get("strength", 1.0),
-                        set_cond_area="default",
-                        mask=mask,
-                    )
-                else:
-                    acc = graph.node(
-                        "ConditioningSetPropertiesAndCombine",
-                        cond=acc_pos,
-                        cond_NEW=regional_positive,
-                        strength=item.get("strength", 1.0),
-                        set_cond_area="default",
-                        mask=mask,
-                    )
-                acc_pos = acc.out(0)
-
-            if not self._masks_cover_canvas(masks):
-                fallback = graph.node(
-                    "ConditioningSetDefaultCombine",
-                    cond=acc_pos,
-                    cond_DEFAULT=global_positive,
-                )
-                acc_pos = fallback.out(0)
-
-            return {
-                "result": (acc_pos, global_negative, areas_list),
-                "expand": graph.finalize(),
-            }
-
-        # First entry: set properties on the regional positive conditioning.
-        # The negative conditioning is global and identical for every region, so
-        # evaluating masked copies of it would repeat the same UNet prediction.
-        first = valid[0]
-        mask_0 = self._make_mask(
-            first["x"], first["y"], first["width"], first["height"], self.BASE_RES,
-        )
-        acc = graph.node(
-            "ConditioningSetProperties",
-            cond_NEW=first["conditioning"],
-            strength=first.get("strength", 1.0),
-            set_cond_area="default",
-            mask=mask_0,
-        )
-        acc_pos = acc.out(0)
-
-        # Following entries: combine regional positive conditionings only.
-        for item in valid[1:]:
-            mask_i = self._make_mask(
+        for item in valid:
+            mask = self._make_fast_mask(
                 item["x"], item["y"], item["width"], item["height"], self.BASE_RES,
             )
-            acc = graph.node(
-                "ConditioningSetPropertiesAndCombine",
-                cond=acc_pos,
-                cond_NEW=item["conditioning"],
-                strength=item.get("strength", 1.0),
-                set_cond_area="default",
-                mask=mask_i,
+            masks.append(mask)
+            regional_positive = self._concat_global(
+                item["conditioning"], global_positive, global_strength,
             )
+
+            if acc_pos is None:
+                acc = graph.node(
+                    "ConditioningSetProperties",
+                    cond_NEW=regional_positive,
+                    strength=item.get("strength", 1.0),
+                    set_cond_area="default",
+                    mask=mask,
+                )
+            else:
+                acc = graph.node(
+                    "ConditioningSetPropertiesAndCombine",
+                    cond=acc_pos,
+                    cond_NEW=regional_positive,
+                    strength=item.get("strength", 1.0),
+                    set_cond_area="default",
+                    mask=mask,
+                )
             acc_pos = acc.out(0)
 
-        # Global como entrada full-image con strength controlable
-        if global_strength > 0.0:
-            global_mask = self._make_mask(0.0, 0.0, 1.0, 1.0, self.BASE_RES)
-            acc = graph.node(
-                "ConditioningSetPropertiesAndCombine",
+        if not self._masks_cover_canvas(masks):
+            fallback = graph.node(
+                "ConditioningSetDefaultCombine",
                 cond=acc_pos,
-                cond_NEW=global_positive,
-                strength=global_strength,
-                set_cond_area="default",
-                mask=global_mask,
+                cond_DEFAULT=global_positive,
             )
+            acc_pos = fallback.out(0)
+
+        return {
+            "result": (acc_pos, global_negative, areas_list),
+            "expand": graph.finalize(),
+        }
+
+
+class ConditioningPipelineCombineV2(ConditioningPipelineCombine):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "global_positive": ("CONDITIONING",),
+                "global_negative": ("CONDITIONING",),
+                "pipeline": ("CONDITIONING_PIPELINE",),
+            },
+        }
+
+    NODE_ID = "ConditioningPipelineCombineV2"
+    NODE_NAME = "Conditioning Pipeline Combine V2"
+
+    def _prepare_regional_conditioning(self, conditioning, global_positive):
+        return self._concat_global(conditioning, global_positive, 1.0)
+
+    def run(
+        self,
+        global_positive,
+        global_negative,
+        pipeline,
+    ):
+        from comfy_execution.graph_utils import GraphBuilder
+
+        entries = list(pipeline) if pipeline is not None else []
+
+        valid = []
+        for item in entries:
+            cond = item.get("conditioning")
+            if cond is not None:
+                valid.append(item)
+
+        areas_list = [
+            {
+                "x": float(item["x"]),
+                "y": float(item["y"]),
+                "width": float(item["width"]),
+                "height": float(item["height"]),
+                "strength": float(item.get("strength", 1.0)),
+            }
+            for item in valid
+        ]
+
+        if not valid:
+            return (global_positive, global_negative, [])
+
+        graph = GraphBuilder()
+        acc_pos = None
+
+        for item in valid:
+            mask = self._make_fast_mask(
+                item["x"], item["y"], item["width"], item["height"], self.BASE_RES,
+            )
+            regional_positive = self._prepare_regional_conditioning(
+                item["conditioning"], global_positive,
+            )
+
+            if acc_pos is None:
+                acc = graph.node(
+                    "ConditioningSetProperties",
+                    cond_NEW=regional_positive,
+                    strength=item.get("strength", 1.0),
+                    set_cond_area="default",
+                    mask=mask,
+                )
+            else:
+                acc = graph.node(
+                    "ConditioningSetPropertiesAndCombine",
+                    cond=acc_pos,
+                    cond_NEW=regional_positive,
+                    strength=item.get("strength", 1.0),
+                    set_cond_area="default",
+                    mask=mask,
+                )
             acc_pos = acc.out(0)
 
-        # Default fallback (safety net para pixeles sin cubrir)
-        final = graph.node(
+        fallback = graph.node(
             "ConditioningSetDefaultCombine",
             cond=acc_pos,
             cond_DEFAULT=global_positive,
         )
+        acc_pos = fallback.out(0)
 
         return {
-            "result": (final.out(0), global_negative, areas_list),
+            "result": (acc_pos, global_negative, areas_list),
             "expand": graph.finalize(),
         }

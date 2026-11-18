@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version" />
+  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
@@ -25,19 +25,23 @@
 - 🔧 [ノード](#nodes)
   - [Conditioning Pipeline (Set Area)](#conditioning-pipeline-set-area)
   - [Conditioning Pipeline (Combine)](#conditioning-pipeline-combine)
+  - [Conditioning Pipeline Combine V2](#conditioning-pipeline-combine-v2)
+  - [Masked Area Conditioning Combine](#masked-area-conditioning-combine)
   - [ScheduledLoRALoader](#scheduledloraloader)
 - 🧩 [オプションの依存関係](#optional-dependencies)
 - 🧭 [マルチエリアのワークフロー例](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [ギャラリー](#gallery)
-- 🚀 [変更履歴](#changelog)
 - 💙 [資金とサポート](#funding--support)
 - 📄 [ライセンス](#license)
+- 🚀 [変更履歴](../CHANGELOG.md)
 
 ---
 
 ## <a id="features"></a>特徴
 
 - 複数の主題および複数地域のプロンプトに対するエリアベースの調整パイプライン。
+- 各領域で完全なグローバルプロンプトを保持し、調整可能なグローバル強度を持たない V2 結合パス。
+- 既存の被写体またはゾーンマスクを使用する領域コンディショニング。
 - 曲線プレビュー出力を備えた 1 ノードのスケジュールされた LoRA 強度制御。
 - 複数の分野にわたって一貫した複数の主題の構成を実現するには、[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) による **ControlNet + OpenPose を強くお勧めします**。
 - ControlNet/OpenPose がないと、複数の主題、複数の領域の合成に一貫性がなくなることが多く、何度も再試行が必要になる場合があります。
@@ -50,6 +54,7 @@
 ### 要件
 - ComfyUI (最近のビルド)
 - Python 3.10+
+- インストールされる依存関係: `scipy`
 - オプションのノード別依存関係: `matplotlib`
 
 ### ステップ
@@ -121,7 +126,6 @@
 - `global_negative` (`CONDITIONING`、必須)
 - `pipeline` (`CONDITIONING_PIPELINE`、必須)
 - `global_strength` (`FLOAT`、デフォルトは `0.3`)
-- `fast_mode` (`BOOLEAN`、デフォルトは `false`)
 
 **出力:**
 - `positive_out` (`CONDITIONING`)
@@ -138,15 +142,42 @@
 - `global_strength` は、グローバル コンテキストがローカル エリアとどの程度競合するかを制御します。
 - global_strength を高くしすぎると、エリアごとのコンディショニングの影響が減少し、画質に悪影響を及ぼす可能性があります。
 - 通常、良い結果は、すべての値を最大化するのではなく、全体的な強度とエリアごとの強度および LoRA の強度のバランスを取ることで得られます。
-- `fast_mode` は任意で、デフォルトでは無効です。そのため、既存のワークフローは以前の動作を維持します。
-- Fast Mode を有効にすると、グローバルなポジティブコンディショニングが各地域のポジティブコンディショニングに連結されます。`global_strength` は無視されず、追加されたグローバル部分だけをスケーリングします。
-- 設定された地域がキャンバス全体を覆う場合、Fast Mode は独立したグローバルポジティブパスを省略します。カバーが不完全な場合はグローバルフォールバックを維持するため、速度向上は小さくなります。
-- Fast Mode は標準パスと数学的に同一ではなく、プロンプトのバランス、構図、被写体の再現性が変わる可能性があります。本番ワークフローに採用する前に結果を比較してください。
+- 最適化パスは常に有効で、グローバル positive を各領域に連結し、`global_strength` は追加部分だけをスケーリングします。
+- `fast_mode` は旧パスが領域別 LoRA を迂回していたため削除されました。
+- 全領域を覆う場合は独立した global positive パスを省略し、不完全な場合はフォールバックを保持します。
 
 **よくある間違い:**
 - ポジティブとネガティブの両方ではなく、1 つのコンディショニング ストリームのみを供給します。
 - `global_strength` をオーバードライブし、領域の詳細を洗い流します。
 - エリアエントリを構築していますが、結合された出力をサンプラーパスに接続するのを忘れています。
+
+---
+
+### <a id="conditioning-pipeline-combine-v2"></a>Conditioning Pipeline Combine V2
+
+各領域に完全な global positive を連結します。`global_strength` はなく、global negative と `areas_out` を保持します。
+
+![Conditioning Pipeline Combine V2](../assets/conditioning_pipeline_combine_v2.png)
+
+**入力:** `global_positive`、`global_negative`、`pipeline`。
+**出力:** `positive_out`、`negative_out`、`areas_out`。
+
+- 空/無効な pipeline は global conditioning と空の領域リストを返します。
+- 未カバー部分には global positive を使用し、Set Area の `strength` は各マスクを制御します。
+- `global_strength` を期待したり global positive を省略したりしないでください。
+
+---
+
+### <a id="masked-area-conditioning-combine"></a>Masked Area Conditioning Combine
+
+矩形座標ではなくマスクから領域コンディショニングを作成します。
+
+![Masked Area Conditioning Combine](../assets/masked_area_conditioning_combine.png)
+
+- 最大 4 組の `conditioning_1..4` と `mask_1..4`、`global_conditioning`、任意の `style_conditioning` を受け取ります。
+- `area_strength`、`max_regions_per_mask`、`min_region_area` で領域を制御します。
+- 出力は `area_conditioning` と `chain_debug_opt` です。
+- 不完全な組と小さな連結成分は無視され、未カバー部分には global/style を使用します。有効な領域がなければ global を返します。
 
 ---
 
@@ -253,20 +284,11 @@ ComfyUI が使用するのと同じ Python 環境に、必要なものだけを�
 
 | プレビュー | 説明 |
 |---------|-------------|
-| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **コンディショニング パイプライン — ControlNet OpenPose**<br><br>ControlNet OpenPose を使用して、LoRA ブリーディングなしで複数の LoRA を含む複数の垂直エリアを示します。<br><br>[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) が必要です。 |
-| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **コンディショニング パイプライン — ControlNet とスタイリングを使用したマルチエリア**<br><br>各領域に個別に適用されるエリアごとのスタイルを使用したマルチエリアと複数の LoRA を示します。<br><br>[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) と[comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>このワークフローはエリアごとのスタイル設定を使用します。つまり、各エリアには個別に構成された独自のスタイルがあります。 ControlNet の直前に Styler ノードを接続することで、グローバル スタイル設定も可能です。 |
+| [![冬と春の風景](../workflows/winter_spring_landscape_v2.png)](../workflows/winter_spring_landscape_v2.png) | **Conditioning Pipeline V2 — 冬 / 春**<br><br>左が冬、右が春の連続した風景です。PNG を ComfyUI にドラッグして workflow を読み込めます。[workflow JSON](../workflows/winter_spring_landscape_v2.json) も含まれます。 |
+| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline V2 — ControlNet OpenPose の複数領域**<br><br>個別のキャラクター LoRA を持つ複数の垂直領域を LoRA bleeding なしで示します。PNG を ComfyUI にドラッグすると埋め込み V2 workflow を読み込めます。<br><br>[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) が必要です。 |
+| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline V2 — 選択的エリアスタイル**<br><br>左の Inuyasha はスタイルなし、右の Ayame のみに Space Opera Anime、Space Marine Armor、Neon Blue を適用します。PNG に workflow が埋め込まれています。<br><br>[comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) と [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline) が必要です。 |
 
 複数の conditioning area、OpenPose、ControlNet、Styler をすべて同時に使用したワークフローは、[こちらの記事](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/)でご覧いただけます。
-
----
-
-## <a id="changelog"></a>変更履歴
-
-### 1.1.4
-
-- 地域コンディショニングの最適化により、2 地域の SDXL テストワークフローで、測定された生成時間が約 144 秒から 70 秒に短縮されました。レンダリング時間は約 51% 減少しました。
-- 任意の Fast Mode は、全体をカバーする同等のテストを約 54 秒で完了しました。以前の実装と比べて最大約 63% の時間短縮です。
-- 性能は GPU、モデル、解像度、sampler、ControlNet 設定、地域のカバー範囲によって変わります。Fast Mode は視覚的な差も生じる可能性があるため、デフォルトでは無効です。
 
 ---
 
@@ -309,7 +331,7 @@ ComfyUI が使用するのと同じ Python 環境に、必要なものだけを�
     </td>
     <td align="center" style="width: 33.33%; padding: 20px;">
       <div>
-        <h4 style="margin: 8px 0;">USDC (Arbitrum のみ ⚠️)</h4>
+        <h4 style="margin: 8px 0;">USDC (Arbitrum のみ)</h4>
         <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
           <img src="../assets/badge_usdc.svg" alt="USDC Badge" width="180" />
         </a>
@@ -318,33 +340,6 @@ ComfyUI が使用するのと同じ Python 環境に、必要なものだけを�
     </td>
   </tr>
 </table>
-
-<details>
-  <summary>スキャンをご希望ですか? QR コードを表示</summary>
-  <br />
-  <table style="width: 100%; table-layout: fixed;">
-    <tr>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>Ko-fi</strong><br />
-        <a href="https://ko-fi.com/D1D716OLPM" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-kofi.svg" alt="Ko-fi QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>PayPal</strong><br />
-        <a href="https://www.paypal.com/ncp/payment/GEEM324PDD9NC" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-paypal.svg" alt="PayPal QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>USDC (Arbitrum) ⚠️</strong><br />
-        <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-usdc.svg" alt="USDC (Arbitrum) QR Code" width="200" />
-        </a>
-      </td>
-    </tr>
-  </table>
-</details>
 
 <a id="usdc-address"></a>
 <details>
@@ -366,3 +361,5 @@ MIT ライセンス - 全文については [LICENSE](../LICENSE) を参照し�
 
 **管理者:** andreszs
 **ステータス:** 活発な開発
+
+---

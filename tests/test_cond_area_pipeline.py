@@ -12,6 +12,7 @@ _SPEC = importlib.util.spec_from_file_location("lora_pipeline_cond_area", _MODUL
 _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 ConditioningPipelineCombine = _MODULE.ConditioningPipelineCombine
+ConditioningPipelineCombineV2 = _MODULE.ConditioningPipelineCombineV2
 
 
 class _Output:
@@ -53,6 +54,12 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
         sys.modules["comfy_execution"] = comfy_execution
         sys.modules["comfy_execution.graph_utils"] = graph_utils
 
+    def test_fast_mode_is_not_configurable(self):
+        self.assertNotIn(
+            "fast_mode",
+            ConditioningPipelineCombine.INPUT_TYPES()["optional"],
+        )
+
     def test_negative_conditioning_is_not_duplicated_per_area(self):
         global_positive = object()
         global_negative = object()
@@ -79,7 +86,7 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
             global_positive,
             global_negative,
             pipeline,
-            global_strength=0.3,
+            global_strength=0.0,
         )
 
         positive, negative, areas = result["result"]
@@ -92,14 +99,12 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
             [
                 "ConditioningSetProperties",
                 "ConditioningSetPropertiesAndCombine",
-                "ConditioningSetPropertiesAndCombine",
-                "ConditioningSetDefaultCombine",
             ],
         )
-        self.assertEqual(positive.node_type, "ConditioningSetDefaultCombine")
+        self.assertEqual(positive.node_type, "ConditioningSetPropertiesAndCombine")
         self.assertFalse(any(node_type.startswith("PairConditioning") for node_type, _ in calls))
 
-    def test_fast_mode_concatenates_global_positive_and_skips_full_coverage_fallback(self):
+    def test_concatenates_global_positive_and_skips_full_coverage_fallback(self):
         global_positive = [[torch.full((1, 1, 2), 2.0), {}]]
         global_negative = object()
         pipeline = [
@@ -126,7 +131,6 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
             global_negative,
             pipeline,
             global_strength=0.25,
-            fast_mode=True,
         )
 
         positive, negative, _ = result["result"]
@@ -145,7 +149,7 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
         self.assertEqual(first_tokens.shape[1], 2)
         torch.testing.assert_close(first_tokens[:, 1:, :], torch.full((1, 1, 2), 0.5))
 
-    def test_fast_mode_keeps_global_fallback_for_incomplete_coverage(self):
+    def test_keeps_global_fallback_for_incomplete_coverage(self):
         global_positive = [[torch.ones((1, 1, 2)), {}]]
         pipeline = [
             {
@@ -162,7 +166,6 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
             global_positive,
             object(),
             pipeline,
-            fast_mode=True,
         )
 
         positive = result["result"][0]
@@ -171,7 +174,7 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
         self.assertEqual(calls[-1][0], "ConditioningSetDefaultCombine")
         self.assertEqual(positive.node_type, "ConditioningSetDefaultCombine")
 
-    def test_fast_mode_overlapping_fractional_regions_cover_canvas(self):
+    def test_overlapping_fractional_regions_cover_canvas(self):
         conditioning = [[torch.ones((1, 1, 2)), {}]]
         pipeline = [
             {
@@ -196,12 +199,87 @@ class ConditioningPipelineCombineTests(unittest.TestCase):
             conditioning,
             object(),
             pipeline,
-            fast_mode=True,
         )
 
         calls = _GraphBuilder.instance.calls
         self.assertFalse(
             any(node_type == "ConditioningSetDefaultCombine" for node_type, _ in calls),
+        )
+
+
+class ConditioningPipelineCombineV2Tests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        graph_utils = types.ModuleType("comfy_execution.graph_utils")
+        graph_utils.GraphBuilder = _GraphBuilder
+        comfy_execution = types.ModuleType("comfy_execution")
+        comfy_execution.graph_utils = graph_utils
+        sys.modules["comfy_execution"] = comfy_execution
+        sys.modules["comfy_execution.graph_utils"] = graph_utils
+
+    def test_has_no_global_strength_input(self):
+        inputs = ConditioningPipelineCombineV2.INPUT_TYPES()
+
+        self.assertNotIn("optional", inputs)
+        self.assertNotIn("global_strength", inputs["required"])
+
+    def test_adds_full_global_context_and_dynamic_default(self):
+        regional = [[torch.full((1, 1, 2), 3.0), {"end_percent": 0.5}]]
+        global_positive = [[torch.full((1, 1, 2), 2.0), {}]]
+        pipeline = [
+            {
+                "conditioning": regional,
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1.0,
+                "height": 1.0,
+                "strength": 0.8,
+            },
+        ]
+
+        result = ConditioningPipelineCombineV2().run(
+            global_positive,
+            object(),
+            pipeline,
+        )
+
+        positive = result["result"][0]
+        calls = _GraphBuilder.instance.calls
+        regional_tokens = calls[0][1]["cond_NEW"][0][0]
+
+        self.assertEqual(regional_tokens.shape[1], 2)
+        torch.testing.assert_close(
+            regional_tokens[:, 1:, :],
+            torch.full((1, 1, 2), 2.0),
+        )
+        self.assertEqual(calls[0][1]["cond_NEW"][0][1]["end_percent"], 0.5)
+        self.assertEqual(calls[-1][0], "ConditioningSetDefaultCombine")
+        self.assertIs(calls[-1][1]["cond_DEFAULT"], global_positive)
+        self.assertEqual(positive.node_type, "ConditioningSetDefaultCombine")
+
+    def test_full_strength_full_coverage_still_uses_dynamic_default(self):
+        regional = [[torch.ones((1, 1, 2)), {}]]
+        pipeline = [
+            {
+                "conditioning": regional,
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1.0,
+                "height": 1.0,
+                "strength": 1.0,
+            },
+        ]
+
+        ConditioningPipelineCombineV2().run(
+            [[torch.ones((1, 1, 2)), {}]],
+            object(),
+            pipeline,
+        )
+
+        calls = _GraphBuilder.instance.calls
+        self.assertEqual(
+            [node_type for node_type, _ in calls],
+            ["ConditioningSetProperties", "ConditioningSetDefaultCombine"],
         )
 
 

@@ -6,7 +6,7 @@
 
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version" />
+  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
@@ -26,19 +26,23 @@
 - 🔧 [節點](#nodes)
   - [Conditioning Pipeline (Set Area)](#conditioning-pipeline-set-area)
   - [Conditioning Pipeline (Combine)](#conditioning-pipeline-combine)
+  - [Conditioning Pipeline Combine V2](#conditioning-pipeline-combine-v2)
+  - [Masked Area Conditioning Combine](#masked-area-conditioning-combine)
   - [ScheduledLoRALoader](#scheduledloraloader)
 - 🧩 [可選依賴項](#optional-dependencies)
 - 🧭 [多區域範例工作流程](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [圖庫](#gallery)
-- 🚀 [更新日誌](#changelog)
 - 💙 [資金與支持](#funding--support)
 - 📄 [許可證](#license)
+- 🚀 [更新日誌](../CHANGELOG.md)
 
 ---
 
 ## <a id="features"></a>特徵
 
 - 用於多主題和多區域提示的基於區域的調節管道。
+- 在每個區域保留完整全域提示且不提供可調全域強度的 V2 合併路徑。
+- 使用既有主體或區域遮罩的區域調節。
 - 帶有曲線預覽輸出的單節點預定 LoRA 強度控制。
 - 為了在多個領域實現一致的多主題構圖，強烈建議透過 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) **ControlNet + OpenPose**。
 - 如果沒有ControlNet/OpenPose，多主體多區域構圖通常會不一致，並且可能需要多次重試。
@@ -51,6 +55,7 @@
 ### 要求
 - ComfyUI（最新版本）
 - Python 3.10+
+- 已安裝依賴項：`scipy`
 - 可選的每個節點依賴項：`matplotlib`
 
 ### 步驟
@@ -122,7 +127,6 @@
 - `global_negative`（`CONDITIONING`，必填）
 - `pipeline`（`CONDITIONING_PIPELINE`，必填）
 - `global_strength`（`FLOAT`，預設 `0.3`）
-- `fast_mode`（`BOOLEAN`，預設 `false`）
 
 **輸出：**
 - `positive_out` (`CONDITIONING`)
@@ -139,15 +143,41 @@
 - `global_strength` 控制全球背景與局部區域競爭的強度。
 - 將 global_strength 推得太高會減少每個區域的調節效果並對影像品質產生負面影響。
 - 好的結果通常來自於平衡全局強度與單位面積強度和 LoRA 強度，而不是最大化所有值。
-- `fast_mode` 是可選功能，預設關閉，因此現有工作流程會維持原有行為。
-- 啟用 Fast Mode 後，全域正向調節會連接到每個區域正向調節中。`global_strength` 不會被忽略；它只縮放新增的全域部分。
-- 當設定的區域覆蓋整個畫布時，Fast Mode 會省略獨立的全域正向計算。若覆蓋不完整，則會保留全域 fallback，因此加速幅度較小。
-- Fast Mode 與標準路徑在數學上並不完全相同，可能改變提示詞平衡、構圖或主體保真度。在正式工作流程中採用前請比較結果。
+- 最佳化路徑始終啟用：全域正向調節連接到每個區域，`global_strength` 僅縮放新增的全域部分。
+- `fast_mode` 已移除，因為其關閉時的舊路徑會繞過各區域 LoRA 調節。
+- 完整覆蓋畫布時省略獨立的全域正向路徑；覆蓋不完整時保留 fallback。
 
 **常見錯誤：**
 - 僅饋送一種調節流，而不是同時饋送正流和負流。
 - 過度駕駛 `global_strength` 並清除區域細節。
 - 建置區域條目，但忘記將組合輸出連接到取樣器路徑。
+
+---
+
+### <a id="conditioning-pipeline-combine-v2"></a>Conditioning Pipeline Combine V2
+
+在每個區域連接完整的全域正向調節。V2 不提供 `global_strength`，並保留全域負向調節與 `areas_out`。
+
+![Conditioning Pipeline Combine V2](../assets/conditioning_pipeline_combine_v2.png)
+
+**輸入：** `global_positive`、`global_negative`、`pipeline`。
+**輸出：** `positive_out`、`negative_out`、`areas_out`。
+
+- 空或無效 pipeline 會傳回全域調節與空區域清單。
+- 未覆蓋像素使用全域正向 fallback，Set Area 的 `strength` 繼續控制遮罩。
+
+---
+
+### <a id="masked-area-conditioning-combine"></a>Masked Area Conditioning Combine
+
+從遮罩而非矩形座標建立區域調節。
+
+![Masked Area Conditioning Combine](../assets/masked_area_conditioning_combine.png)
+
+- 接受最多四組 `conditioning_1..4` / `mask_1..4`、`global_conditioning` 與可選的 `style_conditioning`。
+- 使用 `area_strength`、`max_regions_per_mask` 和 `min_region_area` 控制區域。
+- 輸出 `area_conditioning` 與 `chain_debug_opt`。
+- 忽略不完整配對與過小連通元件；未覆蓋區域使用 global/style fallback。
 
 ---
 
@@ -254,20 +284,11 @@
 
 | 預覽 | 描述 |
 |---------|-------------|
-| [![調節_管道_區域](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **調節管道 — 具有 ControlNet OpenPose 的多個區域**<br><br>使用 ControlNet OpenPose 演示具有多個 LoRA 且沒有 LoRA 出血的多個垂直區域。<br><br>需要 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio)。 |
-| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **調節管道 - 具有 ControlNet 和樣式的多區域**<br><br>演示多區域和多個 LoRA，並將每個區域的樣式獨立應用於每個區域。 <br><br>需要 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) 和 [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>此工作流程使用每個區域的樣式，這表示每個區域都有自己單獨配置的樣式。透過在 ControlNet 之前連接 Styler 節點也可以實現全域樣式設定。 |
+| [![冬春景觀](../workflows/winter_spring_landscape_v2.png)](../workflows/winter_spring_landscape_v2.png) | **Conditioning Pipeline V2 — 冬 / 春**<br><br>同一連續景觀左側為冬季、右側為春季。將 PNG 拖入 ComfyUI 即可載入 workflow，並包含獨立的 [workflow JSON](../workflows/winter_spring_landscape_v2.json)。 |
+| [![調節_管道_區域](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline V2 — 使用 ControlNet OpenPose 的多個區域**<br><br>演示使用獨立角色 LoRA 且無 LoRA bleeding 的多個垂直區域。將 PNG 拖入 ComfyUI 即可載入內嵌的 V2 workflow。<br><br>需要 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio)。 |
+| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline V2 — 選擇性區域樣式**<br><br>左側 Inuyasha 不套用樣式，只對右側 Ayame 套用 Space Opera Anime、Space Marine Armor 與 Neon Blue。PNG 內嵌完整 workflow。<br><br>需要 [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) 和 [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline)。 |
 
 查看[這篇文章](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/)，了解同時使用多個 conditioning area、OpenPose、ControlNet 和 Styler 的完整 workflow。
-
----
-
-## <a id="changelog"></a>更新日誌
-
-### 1.1.4
-
-- 區域調節最佳化將一個雙區域 SDXL 測試工作流程的實測生成時間從約 144 秒降至 70 秒，渲染時間減少約 51%。
-- 可選的 Fast Mode 在完整覆蓋的等效測試中約 54 秒完成，與先前的實作相比最多減少約 63% 的時間。
-- 效能會依 GPU、模型、解析度、sampler、ControlNet 設定及區域覆蓋情況而異。Fast Mode 也可能產生視覺差異，因此預設關閉。
 
 ---
 
@@ -310,7 +331,7 @@
     </td>
     <td align="center" style="width: 33.33%; padding: 20px;">
       <div>
-        <h4 style="margin: 8px 0;">USDC（僅限 Arbitrum ⚠️）</h4>
+        <h4 style="margin: 8px 0;">USDC（僅限 Arbitrum）</h4>
         <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
           <img src="../assets/badge_usdc.svg" alt="USDC Badge" width="180" />
         </a>
@@ -319,33 +340,6 @@
     </td>
   </tr>
 </table>
-
-<details>
-  <summary>比較喜歡掃描？顯示二維碼</summary>
-  <br />
-  <table style="width: 100%; table-layout: fixed;">
-    <tr>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>Ko-fi</strong><br />
-        <a href="https://ko-fi.com/D1D716OLPM" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-kofi.svg" alt="Ko-fi QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>PayPal</strong><br />
-        <a href="https://www.paypal.com/ncp/payment/GEEM324PDD9NC" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-paypal.svg" alt="PayPal QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>USDC (Arbitrum) ⚠️</strong><br />
-        <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-usdc.svg" alt="USDC (Arbitrum) QR Code" width="200" />
-        </a>
-      </td>
-    </tr>
-  </table>
-</details>
 
 <a id="usdc-address"></a>
 <details>
@@ -367,3 +361,5 @@
 
 **維護者：** andreszs
 **狀態：** 積極開發
+
+---

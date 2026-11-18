@@ -1,0 +1,555 @@
+{
+  "id": "a06e8e7d-4d68-4bb0-9b6a-ec57b5783950",
+  "revision": 1,
+  "last_node_id": 33,
+  "last_link_id": 45,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [40, 180],
+      "size": [390, 100],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "slot_index": 0, "links": [33]},
+        {"name": "CLIP", "type": "CLIP", "slot_index": 1, "links": [1]},
+        {"name": "VAE", "type": "VAE", "slot_index": 2, "links": [26, 32]}
+      ],
+      "properties": {"Node name for S&R": "CheckpointLoaderSimple"},
+      "widgets_values": ["ilxl\\waiIllustriousSDXL_v150.safetensors"]
+    },
+    {
+      "id": 2,
+      "type": "CLIPSetLastLayer",
+      "pos": [470, 200],
+      "size": [260, 60],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 1}],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [3, 8, 13, 18, 20, 36, 40]}],
+      "properties": {"Node name for S&R": "CLIPSetLastLayer"},
+      "widgets_values": [-2]
+    },
+    {
+      "id": 3,
+      "type": "CreateHookLora",
+      "pos": [780, -300],
+      "size": [390, 110],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [{"name": "prev_hooks", "type": "HOOKS", "shape": 7, "link": null}],
+      "outputs": [{"name": "HOOKS", "type": "HOOKS", "slot_index": 0, "links": [2]}],
+      "properties": {"Node name for S&R": "CreateHookLora"},
+      "widgets_values": ["charsil\\inuyasha_ilxl.safetensors", 1.25, 1.0]
+    },
+    {
+      "id": 4,
+      "type": "SetClipHooks",
+      "pos": [1210, -300],
+      "size": [250, 110],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 3},
+        {"name": "hooks", "type": "HOOKS", "shape": 7, "link": 2}
+      ],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [4]}],
+      "properties": {"Node name for S&R": "SetClipHooks"},
+      "widgets_values": [true, false]
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [1500, -330],
+      "size": [390, 150],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 4}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [5]}],
+      "title": "Region 1 — Inuyasha",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["(inuyasha:1.35), male focus, solo focus, 1boy, medium close-up, upper body, (very long white hair:1.35), (silver hair:1.25), (yellow eyes:1.2), (dog ears:1.3), animal ears, bead necklace, prayer beads, japanese clothes, vivid red kimono, red hakama, fangs, holding kagome's hand, protective smile"]
+    },
+    {
+      "id": 6,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [1930, -330],
+      "size": [315, 220],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {"name": "conditioning", "type": "CONDITIONING", "link": 5},
+        {"name": "pipeline_in", "type": "CONDITIONING_PIPELINE", "shape": 7, "link": null}
+      ],
+      "outputs": [{"name": "pipeline_out", "type": "CONDITIONING_PIPELINE", "slot_index": 0, "links": [7]}],
+      "properties": {"Node name for S&R": "ConditioningPipelineSetArea"},
+      "widgets_values": [0.22, 1.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "id": 7,
+      "type": "CreateHookLora",
+      "pos": [780, 0],
+      "size": [390, 110],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [{"name": "prev_hooks", "type": "HOOKS", "shape": 7, "link": null}],
+      "outputs": [{"name": "HOOKS", "type": "HOOKS", "slot_index": 0, "links": [6]}],
+      "properties": {"Node name for S&R": "CreateHookLora"},
+      "widgets_values": ["charsil\\kagome-higurashi-s4-nochekaiser.safetensors", 1.0, 1.0]
+    },
+    {
+      "id": 8,
+      "type": "SetClipHooks",
+      "pos": [1210, 0],
+      "size": [250, 110],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 8},
+        {"name": "hooks", "type": "HOOKS", "shape": 7, "link": 6}
+      ],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [9]}],
+      "properties": {"Node name for S&R": "SetClipHooks"},
+      "widgets_values": [true, false]
+    },
+    {
+      "id": 9,
+      "type": "CLIPTextEncode",
+      "pos": [1500, -30],
+      "size": [390, 150],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 9}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [10]}],
+      "title": "Region 2 — Kagome",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["(kagome higurashi:1.3), solo focus, 1girl, medium close-up, upper body, long straight black hair, brown eyes, school uniform, serafuku, white shirt, dark green sailor collar, red neckerchief, green pleated skirt, holding hands with inuyasha and sango, warm smile"]
+    },
+    {
+      "id": 10,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [1930, -30],
+      "size": [315, 220],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {"name": "conditioning", "type": "CONDITIONING", "link": 10},
+        {"name": "pipeline_in", "type": "CONDITIONING_PIPELINE", "shape": 7, "link": 7}
+      ],
+      "outputs": [{"name": "pipeline_out", "type": "CONDITIONING_PIPELINE", "slot_index": 0, "links": [12]}],
+      "properties": {"Node name for S&R": "ConditioningPipelineSetArea"},
+      "widgets_values": [0.22, 1.0, 0.195, 0.0, 1.0]
+    },
+    {
+      "id": 11,
+      "type": "CreateHookLora",
+      "pos": [780, 300],
+      "size": [390, 110],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [{"name": "prev_hooks", "type": "HOOKS", "shape": 7, "link": null}],
+      "outputs": [{"name": "HOOKS", "type": "HOOKS", "slot_index": 0, "links": [11]}],
+      "properties": {"Node name for S&R": "CreateHookLora"},
+      "widgets_values": ["charsil\\sango_Inuyasha_iLL_KK77.safetensors", 1.2, 1.0]
+    },
+    {
+      "id": 12,
+      "type": "SetClipHooks",
+      "pos": [1210, 300],
+      "size": [250, 110],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 13},
+        {"name": "hooks", "type": "HOOKS", "shape": 7, "link": 11}
+      ],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [14]}],
+      "properties": {"Node name for S&R": "SetClipHooks"},
+      "widgets_values": [true, false]
+    },
+    {
+      "id": 13,
+      "type": "CLIPTextEncode",
+      "pos": [1500, 270],
+      "size": [390, 150],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 14}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [15]}],
+      "title": "Region 3 — Sango",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["(sango inuyasha:1.3), sangoinuyasha, sango_inuyasha, solo focus, 1girl, medium close-up, upper body, long dark brown hair, low ponytail, brown eyes, black demon slayer bodysuit, pink shoulder armor, red waist sash, fingerless gloves, holding hands with kagome and kouga, gentle smile"]
+    },
+    {
+      "id": 14,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [1930, 270],
+      "size": [315, 220],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {"name": "conditioning", "type": "CONDITIONING", "link": 15},
+        {"name": "pipeline_in", "type": "CONDITIONING_PIPELINE", "shape": 7, "link": 12}
+      ],
+      "outputs": [{"name": "pipeline_out", "type": "CONDITIONING_PIPELINE", "slot_index": 0, "links": [17]}],
+      "properties": {"Node name for S&R": "ConditioningPipelineSetArea"},
+      "widgets_values": [0.22, 1.0, 0.39, 0.0, 1.0]
+    },
+    {
+      "id": 15,
+      "type": "CLIPTextEncode",
+      "pos": [1120, 1220],
+      "size": [500, 170],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 18}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [19]}],
+      "title": "Global positive — interaction and blending",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["masterpiece, best quality, exactly five distinct characters, five-person medium close-up group portrait, waist-up, cropped at the waist, large upper bodies, large detailed faces, heads near the top edge, shoulder-to-shoulder connected lineup, adjacent characters holding hands at region boundaries, interacting naturally, each character has distinct hair color and costume, cohesive composition, forest shrine clearing at sunset, empty background, no bystanders, warm cinematic light, detailed anime illustration"]
+    },
+    {
+      "id": 16,
+      "type": "CLIPTextEncode",
+      "pos": [1120, 1440],
+      "size": [500, 150],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 20}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [21]}],
+      "title": "Negative prompt",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["worst quality, low quality, bad anatomy, bad hands, extra fingers, missing fingers, extra limbs, duplicate person, extra person, background character, bystander, crowd, more than five people, fewer than five people, fused bodies, mixed identity, same face, same costume, distant shot, wide shot, small people, tiny faces, full body, legs, feet, text, watermark, signature"]
+    },
+    {
+      "id": 17,
+      "type": "ConditioningPipelineCombineV2",
+      "pos": [2310, 560],
+      "size": [350, 190],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {"name": "global_positive", "type": "CONDITIONING", "link": 19},
+        {"name": "global_negative", "type": "CONDITIONING", "link": 21},
+        {"name": "pipeline", "type": "CONDITIONING_PIPELINE", "link": 45}
+      ],
+      "outputs": [
+        {"name": "positive_out", "type": "CONDITIONING", "slot_index": 0, "links": [24]},
+        {"name": "negative_out", "type": "CONDITIONING", "slot_index": 1, "links": [25]},
+        {"name": "areas_out", "type": "CONDITIONING_AREAS", "slot_index": 2, "links": [22]}
+      ],
+      "properties": {"Node name for S&R": "ConditioningPipelineCombineV2"},
+      "widgets_values": []
+    },
+    {
+      "id": 18,
+      "type": "OpenPoseStudio",
+      "pos": [2700, 900],
+      "size": [430, 430],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {"name": "pose_keypoint", "type": "POSE_KEYPOINT", "shape": 7, "link": null},
+        {"name": "areas", "type": "CONDITIONING_AREAS", "shape": 7, "link": 22}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "slot_index": 0, "links": [23]},
+        {"name": "JSON", "type": "STRING", "slot_index": 1, "links": null},
+        {"name": "KPS", "type": "POSE_KEYPOINT", "slot_index": 2, "links": null}
+      ],
+      "properties": {"Node name for S&R": "OpenPoseStudio"},
+      "widgets_values": ["{\"canvas_width\":1536,\"canvas_height\":640,\"people\":[{\"pose_keypoints_2d\":[150,105,1,150,190,1,90,210,1,70,310,1,55,405,1,210,210,1,270,310,1,300,405,1,120,560,1,110,800,1,105,1000,1,180,560,1,190,800,1,195,1000,1,137,95,1,163,95,1,125,105,1,175,105,1]},{\"pose_keypoints_2d\":[450,105,1,450,190,1,390,210,1,345,310,1,300,405,1,510,210,1,570,310,1,600,405,1,420,560,1,410,800,1,405,1000,1,480,560,1,490,800,1,495,1000,1,437,95,1,463,95,1,425,105,1,475,105,1]},{\"pose_keypoints_2d\":[750,105,1,750,190,1,690,210,1,645,310,1,600,405,1,810,210,1,870,310,1,900,405,1,720,560,1,710,800,1,705,1000,1,780,560,1,790,800,1,795,1000,1,737,95,1,763,95,1,725,105,1,775,105,1]},{\"pose_keypoints_2d\":[1050,105,1,1050,190,1,990,210,1,945,310,1,900,405,1,1110,210,1,1170,310,1,1200,405,1,1020,560,1,1010,800,1,1005,1000,1,1080,560,1,1090,800,1,1095,1000,1,1037,95,1,1063,95,1,1025,105,1,1075,105,1]},{\"pose_keypoints_2d\":[1350,105,1,1350,190,1,1290,210,1,1245,310,1,1200,405,1,1410,210,1,1460,310,1,1480,405,1,1320,560,1,1310,800,1,1305,1000,1,1380,560,1,1390,800,1,1395,1000,1,1337,95,1,1363,95,1,1325,105,1,1375,105,1]}]}", true, true, true]
+    },
+    {
+      "id": 19,
+      "type": "ControlNetLoader",
+      "pos": [3190, 900],
+      "size": [360, 80],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [{"name": "CONTROL_NET", "type": "CONTROL_NET", "slot_index": 0, "links": [27]}],
+      "properties": {"Node name for S&R": "ControlNetLoader"},
+      "widgets_values": ["sdxl\\illustriousXL_v10.safetensors"]
+    },
+    {
+      "id": 20,
+      "type": "ControlNetApplyAdvanced",
+      "pos": [3590, 600],
+      "size": [310, 230],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {"name": "positive", "type": "CONDITIONING", "link": 24},
+        {"name": "negative", "type": "CONDITIONING", "link": 25},
+        {"name": "control_net", "type": "CONTROL_NET", "link": 27},
+        {"name": "image", "type": "IMAGE", "link": 23},
+        {"name": "vae", "type": "VAE", "shape": 7, "link": 26}
+      ],
+      "outputs": [
+        {"name": "positive", "type": "CONDITIONING", "slot_index": 0, "links": [28]},
+        {"name": "negative", "type": "CONDITIONING", "slot_index": 1, "links": [30]}
+      ],
+      "properties": {"Node name for S&R": "ControlNetApplyAdvanced"},
+      "widgets_values": [0.85, 0.0, 0.85]
+    },
+    {
+      "id": 21,
+      "type": "EmptyLatentImage",
+      "pos": [3590, 980],
+      "size": [300, 120],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [{"name": "LATENT", "type": "LATENT", "slot_index": 0, "links": [31]}],
+      "properties": {"Node name for S&R": "EmptyLatentImage"},
+      "widgets_values": [1536, 640, 1]
+    },
+    {
+      "id": 23,
+      "type": "KSampler",
+      "pos": [3990, 500],
+      "size": [320, 590],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": 33},
+        {"name": "positive", "type": "CONDITIONING", "link": 28},
+        {"name": "negative", "type": "CONDITIONING", "link": 30},
+        {"name": "latent_image", "type": "LATENT", "link": 31}
+      ],
+      "outputs": [{"name": "LATENT", "type": "LATENT", "slot_index": 0, "links": [34]}],
+      "properties": {"Node name for S&R": "KSampler"},
+      "widgets_values": [424242, "fixed", 20, 4.5, "dpmpp_2m", "karras", 1.0]
+    },
+    {
+      "id": 24,
+      "type": "VAEDecode",
+      "pos": [4360, 540],
+      "size": [240, 80],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {"name": "samples", "type": "LATENT", "link": 34},
+        {"name": "vae", "type": "VAE", "link": 32}
+      ],
+      "outputs": [{"name": "IMAGE", "type": "IMAGE", "slot_index": 0, "links": [16]}],
+      "properties": {"Node name for S&R": "VAEDecode"},
+      "widgets_values": []
+    },
+    {
+      "id": 25,
+      "type": "SaveImage",
+      "pos": [4660, 480],
+      "size": [520, 620],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [{"name": "images", "type": "IMAGE", "link": 16}],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["legacy_5char_upperbody_v2"]
+    },
+    {
+      "id": 26,
+      "type": "CreateHookLora",
+      "pos": [780, 600],
+      "size": [390, 110],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [{"name": "prev_hooks", "type": "HOOKS", "shape": 7, "link": null}],
+      "outputs": [{"name": "HOOKS", "type": "HOOKS", "slot_index": 0, "links": [35]}],
+      "properties": {"Node name for S&R": "CreateHookLora"},
+      "widgets_values": ["charsil\\kouga_inuyasha_ilxl.safetensors", 1.1, 1.0]
+    },
+    {
+      "id": 27,
+      "type": "SetClipHooks",
+      "pos": [1210, 600],
+      "size": [250, 110],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 36},
+        {"name": "hooks", "type": "HOOKS", "shape": 7, "link": 35}
+      ],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [37]}],
+      "properties": {"Node name for S&R": "SetClipHooks"},
+      "widgets_values": [true, false]
+    },
+    {
+      "id": 28,
+      "type": "CLIPTextEncode",
+      "pos": [1500, 570],
+      "size": [390, 150],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 37}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [38]}],
+      "title": "Region 4 — Kouga",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["(kouga_inuyasha:1.35), male focus, solo focus, 1boy, medium close-up, upper body, long black hair, high ponytail, vivid blue eyes, pointy ears, brown headband, wolf warrior, brown armor, fur shoulder trim, blue waist sash, holding hands with sango and ayame, confident grin"]
+    },
+    {
+      "id": 29,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [1930, 570],
+      "size": [315, 220],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {"name": "conditioning", "type": "CONDITIONING", "link": 38},
+        {"name": "pipeline_in", "type": "CONDITIONING_PIPELINE", "shape": 7, "link": 17}
+      ],
+      "outputs": [{"name": "pipeline_out", "type": "CONDITIONING_PIPELINE", "slot_index": 0, "links": [44]}],
+      "properties": {"Node name for S&R": "ConditioningPipelineSetArea"},
+      "widgets_values": [0.22, 1.0, 0.585, 0.0, 1.0]
+    },
+    {
+      "id": 30,
+      "type": "CreateHookLora",
+      "pos": [780, 900],
+      "size": [390, 110],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [{"name": "prev_hooks", "type": "HOOKS", "shape": 7, "link": null}],
+      "outputs": [{"name": "HOOKS", "type": "HOOKS", "slot_index": 0, "links": [39]}],
+      "properties": {"Node name for S&R": "CreateHookLora"},
+      "widgets_values": ["charsil\\inuyasha-ayame-s4-illustriousxl-lora-nochekaiser.safetensors", 1.05, 1.0]
+    },
+    {
+      "id": 31,
+      "type": "SetClipHooks",
+      "pos": [1210, 900],
+      "size": [250, 110],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 40},
+        {"name": "hooks", "type": "HOOKS", "shape": 7, "link": 39}
+      ],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "slot_index": 0, "links": [41]}],
+      "properties": {"Node name for S&R": "SetClipHooks"},
+      "widgets_values": [true, false]
+    },
+    {
+      "id": 32,
+      "type": "CLIPTextEncode",
+      "pos": [1500, 870],
+      "size": [390, 150],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [{"name": "clip", "type": "CLIP", "link": 41}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "slot_index": 0, "links": [42]}],
+      "title": "Region 5 — Ayame",
+      "properties": {"Node name for S&R": "CLIPTextEncode"},
+      "widgets_values": ["(ayame:1.35), solo focus, 1girl, medium close-up, upper body, long vivid red hair, twin ponytails, bright green eyes, pointy ears, purple hair flower, hair ornament, brown headband, white cape, fur trim, jewelry, necklace, holding kouga's hand, cheerful smile"]
+    },
+    {
+      "id": 33,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [1930, 870],
+      "size": [315, 220],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {"name": "conditioning", "type": "CONDITIONING", "link": 42},
+        {"name": "pipeline_in", "type": "CONDITIONING_PIPELINE", "shape": 7, "link": 44}
+      ],
+      "outputs": [{"name": "pipeline_out", "type": "CONDITIONING_PIPELINE", "slot_index": 0, "links": [45]}],
+      "properties": {"Node name for S&R": "ConditioningPipelineSetArea"},
+      "widgets_values": [0.22, 1.0, 0.78, 0.0, 1.0]
+    }
+  ],
+  "links": [
+    [1, 1, 1, 2, 0, "CLIP"],
+    [2, 3, 0, 4, 1, "HOOKS"],
+    [3, 2, 0, 4, 0, "CLIP"],
+    [4, 4, 0, 5, 0, "CLIP"],
+    [5, 5, 0, 6, 0, "CONDITIONING"],
+    [6, 7, 0, 8, 1, "HOOKS"],
+    [7, 6, 0, 10, 1, "CONDITIONING_PIPELINE"],
+    [8, 2, 0, 8, 0, "CLIP"],
+    [9, 8, 0, 9, 0, "CLIP"],
+    [10, 9, 0, 10, 0, "CONDITIONING"],
+    [11, 11, 0, 12, 1, "HOOKS"],
+    [12, 10, 0, 14, 1, "CONDITIONING_PIPELINE"],
+    [13, 2, 0, 12, 0, "CLIP"],
+    [14, 12, 0, 13, 0, "CLIP"],
+    [15, 13, 0, 14, 0, "CONDITIONING"],
+    [16, 24, 0, 25, 0, "IMAGE"],
+    [17, 14, 0, 29, 1, "CONDITIONING_PIPELINE"],
+    [18, 2, 0, 15, 0, "CLIP"],
+    [19, 15, 0, 17, 0, "CONDITIONING"],
+    [20, 2, 0, 16, 0, "CLIP"],
+    [21, 16, 0, 17, 1, "CONDITIONING"],
+    [22, 17, 2, 18, 1, "CONDITIONING_AREAS"],
+    [23, 18, 0, 20, 3, "IMAGE"],
+    [24, 17, 0, 20, 0, "CONDITIONING"],
+    [25, 17, 1, 20, 1, "CONDITIONING"],
+    [26, 1, 2, 20, 4, "VAE"],
+    [27, 19, 0, 20, 2, "CONTROL_NET"],
+    [28, 20, 0, 23, 1, "CONDITIONING"],
+    [30, 20, 1, 23, 2, "CONDITIONING"],
+    [31, 21, 0, 23, 3, "LATENT"],
+    [32, 1, 2, 24, 1, "VAE"],
+    [33, 1, 0, 23, 0, "MODEL"],
+    [34, 23, 0, 24, 0, "LATENT"],
+    [35, 26, 0, 27, 1, "HOOKS"],
+    [36, 2, 0, 27, 0, "CLIP"],
+    [37, 27, 0, 28, 0, "CLIP"],
+    [38, 28, 0, 29, 0, "CONDITIONING"],
+    [39, 30, 0, 31, 1, "HOOKS"],
+    [40, 2, 0, 31, 0, "CLIP"],
+    [41, 31, 0, 32, 0, "CLIP"],
+    [42, 32, 0, 33, 0, "CONDITIONING"],
+    [44, 29, 0, 33, 1, "CONDITIONING_PIPELINE"],
+    [45, 33, 0, 17, 2, "CONDITIONING_PIPELINE"]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Five interacting upper-body characters — legacy regional LoRA + OpenPose Studio",
+      "bounding": [20, -390, 5200, 2050],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {"frontendVersion": "1.57.4", "workflowRendererVersion": "LG"},
+  "version": 0.4
+}

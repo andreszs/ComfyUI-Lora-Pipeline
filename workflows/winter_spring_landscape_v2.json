@@ -1,0 +1,1012 @@
+{
+  "id": "5bfd7948-d380-40d4-8125-0864d9854e43",
+  "revision": 0,
+  "last_node_id": 207,
+  "last_link_id": 410,
+  "nodes": [
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        2640,
+        470
+      ],
+      "size": [
+        200,
+        50
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 60
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 179
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            69
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 109,
+      "type": "CLIPTextEncode",
+      "pos": [
+        800,
+        950
+      ],
+      "size": [
+        420,
+        180
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 315
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            300
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "hard vertical seam, split screen, diptych, collage, panels, frame, two separate landscapes, duplicated mountains, disconnected river, different camera angles, fantasy, magic, surreal, neon, oversaturated colors, extreme weather, blizzard, tropical jungle, autumn leaves, summer heat, empty spring meadow, sparse flowers, bare trees on the right, multiple cabins, cabin on the winter side, city, road, people, person, animals, text, watermark, logo, blur, low quality"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "Negative"
+    },
+    {
+      "id": 2,
+      "type": "CLIPSetLastLayer",
+      "pos": [
+        500,
+        520
+      ],
+      "size": [
+        250,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        },
+        {
+          "localized_name": "stop_at_clip_layer",
+          "name": "stop_at_clip_layer",
+          "type": "INT",
+          "widget": {
+            "name": "stop_at_clip_layer"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            313,
+            314,
+            315,
+            318
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPSetLastLayer"
+      },
+      "widgets_values": [
+        -1
+      ]
+    },
+    {
+      "id": 27,
+      "type": "SaveImage",
+      "pos": [
+        2890,
+        340
+      ],
+      "size": [
+        520,
+        560
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 69
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "%date:yyyy-MM-dd%/%date:hhmmss%"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        0,
+        500
+      ],
+      "size": [
+        440,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ckpt_name",
+          "name": "ckpt_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "ckpt_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            309
+          ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1
+          ]
+        },
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            179
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "RealVisXL_V5.0_fp16.safetensors"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "KSampler",
+      "pos": [
+        2120,
+        350
+      ],
+      "size": [
+        340,
+        750
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 309
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 298
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 299
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 410
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            60
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        830301,
+        "fixed",
+        32,
+        6.5,
+        "dpmpp_2m_sde",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 127,
+      "type": "CLIPTextEncode",
+      "pos": [
+        800,
+        640
+      ],
+      "size": [
+        420,
+        260
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 314
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            301
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "right half in unmistakable peak spring, a grove of mature cherry trees covered in abundant dense pink and white blossoms, flowering branches filling the right side of the sky, lush emerald meadow carpeted with plentiful colorful wildflowers including yellow buttercups purple lupines and white daisies, one small charming rustic wooden cabin near the river surrounded by blossoms and a flower garden, fresh young leaves, clear flowing river reflecting the sky, gentle warm natural sunlight, richly detailed but realistic colors, peaceful photorealistic landscape, no people"
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "SPRING — Right Realm"
+    },
+    {
+      "id": 128,
+      "type": "CLIPTextEncode",
+      "pos": [
+        800,
+        80
+      ],
+      "size": [
+        420,
+        180
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 318
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            306
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "one continuous wide alpine valley landscape with a gently winding river crossing the foreground and middle distance, one small rustic wooden footbridge crossing the river near the center and physically connecting both banks, the left half of the bridge dusted with snow and frost while the right half is surrounded by spring flowers, a single shared horizon and distant mountain range, same terrain and perspective across the whole image, natural soft morning daylight, realistic atmospheric depth, high-detail professional landscape photography, seamless seasonal transition through the center, no dividing line, no collage"
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "Global — One Continuous Landscape"
+    },
+    {
+      "id": 108,
+      "type": "CLIPTextEncode",
+      "pos": [
+        800,
+        330
+      ],
+      "size": [
+        420,
+        260
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 313
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            302
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "left half in quiet midwinter, snow-covered ground and pine trees, bare deciduous branches, delicate frost, partially frozen river with thin natural ice, cool white and muted blue-gray tones, light snow dusting, soft cold mist, realistic subdued winter daylight, peaceful and photorealistic, no buildings, no people"
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "WINTER — Left Realm"
+    },
+    {
+      "id": 123,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [
+        1300,
+        360
+      ],
+      "size": [
+        330,
+        190
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "conditioning",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 302
+        },
+        {
+          "localized_name": "pipeline_in",
+          "name": "pipeline_in",
+          "shape": 7,
+          "type": "CONDITIONING_PIPELINE",
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "FLOAT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "FLOAT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "x",
+          "name": "x",
+          "type": "FLOAT",
+          "widget": {
+            "name": "x"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "y",
+          "name": "y",
+          "type": "FLOAT",
+          "widget": {
+            "name": "y"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength",
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "pipeline_out",
+          "name": "pipeline_out",
+          "type": "CONDITIONING_PIPELINE",
+          "links": [
+            296
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningPipelineSetArea"
+      },
+      "widgets_values": [
+        0.5,
+        1,
+        0,
+        0,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335",
+      "title": "WINTER — Left 50%"
+    },
+    {
+      "id": 124,
+      "type": "ConditioningPipelineSetArea",
+      "pos": [
+        1300,
+        650
+      ],
+      "size": [
+        330,
+        190
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "conditioning",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 301
+        },
+        {
+          "localized_name": "pipeline_in",
+          "name": "pipeline_in",
+          "shape": 7,
+          "type": "CONDITIONING_PIPELINE",
+          "link": 296
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "FLOAT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "FLOAT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "x",
+          "name": "x",
+          "type": "FLOAT",
+          "widget": {
+            "name": "x"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "y",
+          "name": "y",
+          "type": "FLOAT",
+          "widget": {
+            "name": "y"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength",
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "pipeline_out",
+          "name": "pipeline_out",
+          "type": "CONDITIONING_PIPELINE",
+          "links": [
+            297
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningPipelineSetArea"
+      },
+      "widgets_values": [
+        0.5,
+        1,
+        0.5,
+        0,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335",
+      "title": "SPRING — Right 50%"
+    },
+    {
+      "id": 125,
+      "type": "ConditioningPipelineCombineV2",
+      "pos": [
+        1680,
+        500
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "global_positive",
+          "name": "global_positive",
+          "type": "CONDITIONING",
+          "link": 306
+        },
+        {
+          "localized_name": "global_negative",
+          "name": "global_negative",
+          "type": "CONDITIONING",
+          "link": 300
+        },
+        {
+          "localized_name": "pipeline",
+          "name": "pipeline",
+          "type": "CONDITIONING_PIPELINE",
+          "link": 297
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive_out",
+          "name": "positive_out",
+          "type": "CONDITIONING",
+          "links": [
+            298
+          ]
+        },
+        {
+          "localized_name": "negative_out",
+          "name": "negative_out",
+          "type": "CONDITIONING",
+          "links": [
+            299
+          ]
+        },
+        {
+          "localized_name": "areas_out",
+          "name": "areas_out",
+          "type": "CONDITIONING_AREAS",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningPipelineCombineV2"
+      },
+      "widgets_values": [],
+      "color": "#223",
+      "bgcolor": "#335",
+      "title": "Conditioning Pipeline Combine V2"
+    },
+    {
+      "id": 207,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1710,
+        780
+      ],
+      "size": [
+        320,
+        120
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            410
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1280,
+        1080,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      1,
+      2,
+      0,
+      "CLIP"
+    ],
+    [
+      60,
+      5,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      69,
+      7,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      179,
+      1,
+      2,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      296,
+      123,
+      0,
+      124,
+      1,
+      "CONDITIONING_PIPELINE"
+    ],
+    [
+      297,
+      124,
+      0,
+      125,
+      2,
+      "CONDITIONING_PIPELINE"
+    ],
+    [
+      300,
+      109,
+      0,
+      125,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      301,
+      127,
+      0,
+      124,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      302,
+      108,
+      0,
+      123,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      306,
+      128,
+      0,
+      125,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      309,
+      1,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      313,
+      2,
+      0,
+      108,
+      0,
+      "CLIP"
+    ],
+    [
+      314,
+      2,
+      0,
+      127,
+      0,
+      "CLIP"
+    ],
+    [
+      315,
+      2,
+      0,
+      109,
+      0,
+      "CLIP"
+    ],
+    [
+      318,
+      2,
+      0,
+      128,
+      0,
+      "CLIP"
+    ],
+    [
+      298,
+      125,
+      0,
+      5,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      299,
+      125,
+      1,
+      5,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      410,
+      207,
+      0,
+      5,
+      3,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.38.14",
+    "workflowRendererVersion": "LG",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

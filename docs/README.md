@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version" />
+  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
@@ -25,19 +25,23 @@ Area-based LoRA conditioning wrappers and LoRA Scheduling nodes for ComfyUI.
 - 🔧 [Nodes](#nodes)
   - [Conditioning Pipeline (Set Area)](#conditioning-pipeline-set-area)
   - [Conditioning Pipeline (Combine)](#conditioning-pipeline-combine)
+  - [Conditioning Pipeline Combine V2](#conditioning-pipeline-combine-v2)
+  - [Masked Area Conditioning Combine](#masked-area-conditioning-combine)
   - [ScheduledLoRALoader](#scheduledloraloader)
 - 🧩 [Optional Dependencies](#optional-dependencies)
 - 🧭 [Multi-area example workflow](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [Gallery](#gallery)
-- 🚀 [Changelog](#changelog)
 - 💙 [Funding & Support](#funding--support)
 - 📄 [License](#license)
+- 🚀 [Changelog](../CHANGELOG.md)
 
 ---
 
 ## Features
 
 - Area-based conditioning pipeline for multi-subject and multi-region prompts.
+- A V2 combine path that keeps full global prompt context in every region without a configurable global-strength input.
+- Mask-driven regional conditioning for workflows that already provide subject or zone masks.
 - One-node scheduled LoRA strength control with a curve preview output.
 - For consistent multi-subject composition across multiple areas, **ControlNet + OpenPose is strongly recommended** via [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio).
 - Without ControlNet/OpenPose, multi-subject multi-area composition is often inconsistent and may require many retries.
@@ -50,7 +54,8 @@ Area-based LoRA conditioning wrappers and LoRA Scheduling nodes for ComfyUI.
 ### Requirements
 - ComfyUI (recent build)
 - Python 3.10+
-- Optional per-node deps: `matplotlib`
+- Installed dependency: `scipy`
+- Optional per-node dependency: `matplotlib`
 
 ### Steps
 
@@ -72,13 +77,11 @@ Area-based LoRA conditioning wrappers and LoRA Scheduling nodes for ComfyUI.
 
 ## Nodes
 
-| Conditioning Pipeline (Combine) | Conditioning Pipeline (Set Area) | Load LoRA (Scheduled) |
-|---|---|---|
-| ![Conditioning Pipeline (Combine)](../assets/conditioning_pipeline_combine.png) | ![Conditioning Pipeline (Set Area)](../assets/conditioning_pipeline_set_area.png) | ![Load LoRA (Scheduled)](../assets/scheduled_lora_loader.png) |
-
 ### Conditioning Pipeline (Set Area)
 
 Define one area-conditioned entry at a time. This node defines a rectangular region with width, height, x, and y, then applies a dedicated conditioning prompt and strength to that region as part of a chained conditioning pipeline.
+
+![Conditioning Pipeline (Set Area)](../assets/conditioning_pipeline_set_area.png)
 
 **At a glance:**
 - Use one node instance per region/subject prompt.
@@ -112,6 +115,8 @@ Define one area-conditioned entry at a time. This node defines a rectangular reg
 
 Combine global positive/negative conditioning with the area pipeline for region-aware outputs. Together with Set Area, this is the core path for multi-LoRAs and separate conditionings per subject/zone.
 
+![Conditioning Pipeline (Combine)](../assets/conditioning_pipeline_combine.png)
+
 **At a glance:**
 - Converts your regional pipeline into final positive/negative outputs.
 - Keeps global prompt context while adding local regional control.
@@ -121,7 +126,6 @@ Combine global positive/negative conditioning with the area pipeline for region-
 - `global_negative` (`CONDITIONING`, required)
 - `pipeline` (`CONDITIONING_PIPELINE`, required)
 - `global_strength` (`FLOAT`, default `0.3`)
-- `fast_mode` (`BOOLEAN`, default `false`)
 
 **Outputs:**
 - `positive_out` (`CONDITIONING`)
@@ -138,10 +142,9 @@ Combine global positive/negative conditioning with the area pipeline for region-
 - `global_strength` controls how strongly global context competes with local areas.
 - Pushing global_strength too high can reduce per-area conditioning influence and negatively impact image quality.
 - Good results generally come from balancing global strength with per-area strength and LoRA strength rather than maximizing all values.
-- `fast_mode` is opt-in and disabled by default, so existing workflows keep their previous behavior.
-- When enabled, Fast Mode concatenates the global positive conditioning into every regional positive conditioning. `global_strength` is not ignored: it scales only the appended global portion.
-- When the configured regions cover the full canvas, Fast Mode avoids a separate global positive pass. If coverage is incomplete, the global fallback is retained for correctness, so the speedup will be smaller.
-- Fast Mode is not mathematically identical to the standard path and may change prompt balance, composition, or subject fidelity. Compare results before adopting it for production workflows.
+- The optimized conditioning path is always active. Global positive conditioning is concatenated into every regional positive conditioning so per-area LoRAs remain effective; `global_strength` scales only the appended global portion.
+- `fast_mode` was removed because its disabled legacy path bypassed per-area LoRA conditioning; retaining the switch would have kept exposing a known-incorrect regional path.
+- When the configured regions cover the full canvas, the node avoids a separate global positive pass. If coverage is incomplete, the global fallback is retained for correctness, so the speedup will be smaller.
 
 **Common mistakes:**
 - Feeding only one conditioning stream instead of both positive and negative.
@@ -150,9 +153,87 @@ Combine global positive/negative conditioning with the area pipeline for region-
 
 ---
 
+### Conditioning Pipeline Combine V2
+
+Combine the same chained rectangular area pipeline with full-strength global positive context in every regional prompt. V2 removes the `global_strength` control and always keeps the global positive conditioning available to each region, while retaining the global negative conditioning and area metadata outputs.
+
+![Conditioning Pipeline Combine V2](../assets/conditioning_pipeline_combine_v2.png)
+
+**At a glance:**
+- Uses the same `Conditioning Pipeline (Set Area)` chain as the original combine node.
+- Concatenates the complete global positive conditioning into every valid regional conditioning.
+- Keeps a dynamic global default for pixels outside the configured regions.
+- Exposes the configured area list for OpenPose Studio and other region-aware nodes.
+
+**Inputs:**
+- `global_positive` (`CONDITIONING`, required)
+- `global_negative` (`CONDITIONING`, required)
+- `pipeline` (`CONDITIONING_PIPELINE`, required)
+
+**Outputs:**
+- `positive_out` (`CONDITIONING`)
+- `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**Behavior notes:**
+- If the pipeline is empty or invalid, the node returns the global positive and negative conditioning with an empty area list.
+- Every regional prompt receives the full global positive context; there is no per-node global-strength adjustment.
+- The global positive conditioning is also retained as the default fallback for uncovered pixels.
+- Regional `strength` values from each Set Area node still control their respective masks.
+
+**Common mistakes:**
+- Expecting a `global_strength` input; V2 deliberately does not expose one.
+- Omitting the global positive prompt and relying only on regional prompts.
+- Forgetting to connect the final Set Area pipeline to `pipeline`.
+
+---
+
+### Masked Area Conditioning Combine
+
+Build regional conditioning directly from masks instead of normalized rectangle coordinates. Use this node when another part of the workflow already produces masks for the subjects or zones that need separate prompts or LoRAs.
+
+![Masked Area Conditioning Combine](../assets/masked_area_conditioning_combine.png)
+
+**At a glance:**
+- Accepts up to four conditioning-and-mask pairs.
+- Detects and filters connected regions inside each mask.
+- Concatenates global and optional style context into every regional conditioning.
+- Uses the same optimized full-canvas conditioning strategy as `Conditioning Pipeline (Combine)`.
+
+**Inputs:**
+- `global_conditioning` (`CONDITIONING`, required)
+- `conditioning_1` (`CONDITIONING`, required)
+- `mask_1` (`MASK`, required)
+- `area_strength` (`FLOAT`, default `0.5`)
+- `conditioning_2` through `conditioning_4` (`CONDITIONING`, optional)
+- `mask_2` through `mask_4` (`MASK`, optional)
+- `style_conditioning` (`CONDITIONING`, optional)
+- `max_regions_per_mask` (`INT`, default `10`)
+- `min_region_area` (`FLOAT`, default `0.001`)
+
+**Outputs:**
+- `area_conditioning` (`CONDITIONING`)
+- `chain_debug_opt` (`CONDITIONING`)
+
+**Behavior notes:**
+- Each optional conditioning must have its matching mask; incomplete pairs are ignored.
+- Connected components smaller than `min_region_area` are ignored. If a mask contains more components than `max_regions_per_mask`, only the largest components are retained.
+- `area_strength` is applied uniformly to every accepted mask.
+- If the accepted masks do not cover the full canvas, global/style conditioning is retained as the fallback for uncovered pixels.
+- If no valid regions remain after filtering, both outputs return the global conditioning.
+
+**Common mistakes:**
+- Connecting an optional conditioning without its matching mask, or the reverse.
+- Setting `min_region_area` high enough to filter out the intended subjects.
+- Sending non-binary masks and expecting values at or below `0.5` to be included.
+
+---
+
 ### ScheduledLoRALoader
 
 Apply one LoRA with constant strength or a scheduled curve over diffusion progress, in one clean node.
+
+![Load LoRA (Scheduled)](../assets/scheduled_lora_loader.png)
 
 **At a glance:**
 - Replaces messy chains of multiple native LoRA/control nodes.
@@ -253,20 +334,11 @@ Global styling means applying `Styler Pipeline` once to the whole image, in addi
 
 | Preview | Description |
 |---------|-------------|
-| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline — Multi Areas with ControlNet OpenPose**<br><br>Demonstrates multi vertical areas with multiple LoRAs without LoRA bleeding, using ControlNet OpenPose.<br><br>Requires [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
-| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline — Multi Areas with ControlNet & Styling**<br><br>Demonstrates multi areas and multiple LoRAs with per-area styling applied to each region independently.<br><br>Requires [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) and [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>This workflow uses per-area styling, meaning each area has its own styles configured separately. Global styling is also possible by connecting the Styler node right before ControlNet. |
+| [![Winter and spring landscape](../workflows/winter_spring_landscape_v2.png)](../workflows/winter_spring_landscape_v2.png) | **Conditioning Pipeline V2 — Winter / Spring Landscape**<br><br>Demonstrates a single continuous landscape conditioned as winter on the left and spring on the right, without ControlNet.<br><br>Drag and drop this PNG into ComfyUI, or open it from ComfyUI, to load the complete workflow embedded in the image metadata. A standalone [workflow JSON](../workflows/winter_spring_landscape_v2.json) is also included. |
+| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline V2 — Multi Areas with ControlNet OpenPose**<br><br>Demonstrates multiple vertical areas with separate character LoRAs and no LoRA bleeding, using ControlNet OpenPose.<br><br>Drag and drop this PNG into ComfyUI, or open it from ComfyUI, to load the complete V2 workflow embedded in the image metadata.<br><br>Requires [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
+| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline V2 — Selective Area Styling with ControlNet**<br><br>Demonstrates selective per-area styling: Inuyasha uses the original unstyled conditioning on the left, while Styler Pipeline applies Space Opera Anime, Space Marine Armor, and Neon Blue lighting only to Ayame on the right.<br><br>Drag and drop this PNG into ComfyUI, or open it from ComfyUI, to load the complete V2 workflow embedded in the image metadata.<br><br>Requires [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) and [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>A Styler node can be inserted only into the areas that need it, while other areas connect directly to Conditioning Pipeline Set Area. Global styling is also possible by connecting the Styler node right before ControlNet. |
 
 See [this post](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/) for a complete workflow combining multiple conditioning areas, OpenPose, ControlNet and Styler all used together.
-
----
-
-## Changelog
-
-### 1.1.4
-
-- Optimized regional conditioning reduced measured generation time from about 144 seconds to 70 seconds in a tested two-region SDXL workflow—approximately 51% less render time.
-- Added the optional Fast Mode. In an equivalent full-coverage test it completed in about 54 seconds—up to approximately 63% less render time than the previous implementation.
-- Performance varies by GPU, model, resolution, sampler, ControlNet setup, and regional coverage. Fast Mode can also produce visual differences, so it remains disabled by default.
 
 ---
 
@@ -309,7 +381,7 @@ Your contribution helps:
     </td>
     <td align="center" style="width: 33.33%; padding: 20px;">
       <div>
-        <h4 style="margin: 8px 0;">USDC (Arbitrum only ⚠️)</h4>
+        <h4 style="margin: 8px 0;">USDC (Arbitrum only)</h4>
         <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
           <img src="../assets/badge_usdc.svg" alt="USDC Badge" width="180" />
         </a>
@@ -318,33 +390,6 @@ Your contribution helps:
     </td>
   </tr>
 </table>
-
-<details>
-  <summary>Prefer scanning? Show QR codes</summary>
-  <br />
-  <table style="width: 100%; table-layout: fixed;">
-    <tr>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>Ko-fi</strong><br />
-        <a href="https://ko-fi.com/D1D716OLPM" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-kofi.svg" alt="Ko-fi QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>PayPal</strong><br />
-        <a href="https://www.paypal.com/ncp/payment/GEEM324PDD9NC" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-paypal.svg" alt="PayPal QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>USDC (Arbitrum) ⚠️</strong><br />
-        <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-usdc.svg" alt="USDC (Arbitrum) QR Code" width="200" />
-        </a>
-      </td>
-    </tr>
-  </table>
-</details>
 
 <a id="usdc-address"></a>
 <details>
@@ -366,3 +411,5 @@ MIT License - see [LICENSE](../LICENSE) for full text.
 
 **Maintained by:** andreszs
 **Status:** Active Development
+
+---

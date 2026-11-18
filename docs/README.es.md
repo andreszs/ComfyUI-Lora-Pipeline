@@ -5,7 +5,7 @@
 
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version" />
+  <img alt="Version" src="https://img.shields.io/github/v/tag/andreszs/comfyui-lora-pipeline?label=version&v=1.2.0" />
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/andreszs/comfyui-lora-pipeline" />
   <img alt="License" src="https://img.shields.io/github/license/andreszs/comfyui-lora-pipeline" />
 </p>
@@ -25,19 +25,23 @@ Wrappers de condicionamiento LoRA basados en áreas y nodos de planificación Lo
 - 🔧 [Nodos](#nodes)
   - [Conditioning Pipeline (Set Area)](#conditioning-pipeline-set-area)
   - [Conditioning Pipeline (Combine)](#conditioning-pipeline-combine)
+  - [Conditioning Pipeline Combine V2](#conditioning-pipeline-combine-v2)
+  - [Masked Area Conditioning Combine](#masked-area-conditioning-combine)
   - [ScheduledLoRALoader](#scheduledloraloader)
 - 🧩 [Dependencias opcionales](#optional-dependencies)
 - 🧭 [Workflow de ejemplo con múltiples áreas](#example-workflow-multi-area-conditioning-pipeline)
 - 🖼️ [Galería](#gallery)
-- 🚀 [Registro de cambios](#changelog)
 - 💙 [Financiamiento y apoyo](#funding--support)
 - 📄 [Licencia](#license)
+- 🚀 [Registro de cambios](../CHANGELOG.md)
 
 ---
 
 ## <a id="features"></a>Características
 
 - Canal de acondicionamiento basado en áreas para indicaciones de múltiples sujetos y múltiples regiones.
+- Una ruta de combinación V2 que conserva todo el contexto del prompt global en cada región, sin una entrada configurable de fuerza global.
+- Acondicionamiento regional basado en máscaras para workflows que ya proporcionan máscaras de sujetos o zonas.
 - Control de fuerza LoRA programado de un nodo con una salida de vista previa de curva.
 - Para una composición consistente de múltiples temas en múltiples áreas, se recomienda encarecidamente **ControlNet + OpenPose** a través de [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio).
 - Sin ControlNet/OpenPose, la composición de múltiples sujetos y múltiples áreas suele ser inconsistente y puede requerir muchos reintentos.
@@ -50,6 +54,7 @@ Wrappers de condicionamiento LoRA basados en áreas y nodos de planificación Lo
 ### Requisitos
 - ComfyUI (construcción reciente)
 - Python 3.10+
+- Dependencia instalada: `scipy`
 - Dependencias opcionales por nodo: `matplotlib`
 
 ### Pasos
@@ -121,7 +126,6 @@ Combinar el condicionamiento global positivo/negativo con el pipeline del área 
 - `global_negative` (`CONDITIONING`, requerido)
 - `pipeline` (`CONDITIONING_PIPELINE`, requerido)
 - `global_strength` (`FLOAT`, predeterminado `0.3`)
-- `fast_mode` (`BOOLEAN`, predeterminado `false`)
 
 **Salidas:**
 - `positive_out` (`CONDITIONING`)
@@ -138,15 +142,90 @@ Combinar el condicionamiento global positivo/negativo con el pipeline del área 
 - `global_strength` controla la fuerza con la que el contexto global compite con las áreas locales.
 - Presionar global_strength demasiado alto puede reducir la influencia del acondicionamiento por área y afectar negativamente la calidad de la imagen.
 - Los buenos resultados generalmente provienen de equilibrar la fuerza global con la fuerza por área y la fuerza LoRA en lugar de maximizar todos los valores.
-- `fast_mode` es opcional y viene desactivado, por lo que los workflows existentes conservan su comportamiento anterior.
-- Al activarlo, Fast Mode concatena el condicionamiento positivo global dentro de cada condicionamiento positivo regional. `global_strength` no se ignora: escala únicamente la parte global agregada.
-- Cuando las regiones configuradas cubren todo el canvas, Fast Mode evita un pase positivo global independiente. Si la cobertura es incompleta, conserva el fallback global para mantener un resultado correcto, por lo que la mejora de velocidad será menor.
-- Fast Mode no es matemáticamente idéntico a la ruta estándar y puede cambiar el equilibrio del prompt, la composición o la fidelidad de los sujetos. Compare los resultados antes de adoptarlo en workflows de producción.
+- La ruta de acondicionamiento optimizada está siempre activa. El acondicionamiento positivo global se concatena en cada acondicionamiento positivo regional para que los LoRA por área sigan siendo efectivos; `global_strength` sólo escala la parte global agregada.
+- `fast_mode` se eliminó porque su ruta heredada desactivada omitía el acondicionamiento LoRA por área; conservar el interruptor habría seguido exponiendo una ruta regional incorrecta conocida.
+- Cuando las regiones configuradas cubren todo el canvas, el nodo evita un pase positivo global independiente. Si la cobertura es incompleta, se conserva el fallback global por corrección, por lo que la mejora de velocidad será menor.
 
 **Errores comunes:**
 - Alimentar solo una corriente condicionante en lugar de positiva y negativa.
 - Subir demasiado `global_strength` y perder detalles del área.
 - Construya entradas de área pero olvídese de conectar las salidas combinadas a su ruta de muestreo.
+
+---
+
+### <a id="conditioning-pipeline-combine-v2"></a>Conditioning Pipeline Combine V2
+
+Combina el mismo pipeline encadenado de áreas rectangulares con el contexto positivo global a fuerza completa en cada prompt regional. V2 elimina el control `global_strength` y mantiene siempre disponible el acondicionamiento positivo global en cada región, conservando el acondicionamiento negativo global y la salida de metadatos de áreas.
+
+![Conditioning Pipeline Combine V2](../assets/conditioning_pipeline_combine_v2.png)
+
+**De un vistazo:**
+- Usa la misma cadena `Conditioning Pipeline (Set Area)` que el nodo Combine original.
+- Concatena todo el acondicionamiento positivo global en cada acondicionamiento regional válido.
+- Mantiene un valor global predeterminado dinámico para los píxeles fuera de las regiones configuradas.
+- Expone la lista de áreas configuradas para OpenPose Studio y otros nodos conscientes de regiones.
+
+**Entradas:**
+- `global_positive` (`CONDITIONING`, requerido)
+- `global_negative` (`CONDITIONING`, requerido)
+- `pipeline` (`CONDITIONING_PIPELINE`, requerido)
+
+**Salidas:**
+- `positive_out` (`CONDITIONING`)
+- `negative_out` (`CONDITIONING`)
+- `areas_out` (`CONDITIONING_AREAS`)
+
+**Notas de comportamiento:**
+- Si el pipeline está vacío o no es válido, el nodo devuelve los acondicionamientos positivo y negativo globales con una lista de áreas vacía.
+- Cada prompt regional recibe todo el contexto positivo global; no existe un ajuste de fuerza global por nodo.
+- El acondicionamiento positivo global también se conserva como fallback predeterminado para los píxeles no cubiertos.
+- Los valores regionales de `strength` de cada nodo Set Area siguen controlando sus máscaras respectivas.
+
+**Errores comunes:**
+- Esperar una entrada `global_strength`; V2 no la expone deliberadamente.
+- Omitir el prompt positivo global y depender únicamente de prompts regionales.
+- Olvidar conectar el pipeline del último Set Area a `pipeline`.
+
+---
+
+### <a id="masked-area-conditioning-combine"></a>Masked Area Conditioning Combine
+
+Construye acondicionamiento regional directamente desde máscaras en lugar de coordenadas rectangulares normalizadas. Utiliza este nodo cuando otra parte del workflow ya produce máscaras para los sujetos o zonas que necesitan prompts o LoRA separados.
+
+![Masked Area Conditioning Combine](../assets/masked_area_conditioning_combine.png)
+
+**De un vistazo:**
+- Acepta hasta cuatro pares de acondicionamiento y máscara.
+- Detecta y filtra regiones conectadas dentro de cada máscara.
+- Concatena contexto global y de estilo opcional en cada acondicionamiento regional.
+- Usa la misma estrategia optimizada de acondicionamiento de canvas completo que `Conditioning Pipeline (Combine)`.
+
+**Entradas:**
+- `global_conditioning` (`CONDITIONING`, requerido)
+- `conditioning_1` (`CONDITIONING`, requerido)
+- `mask_1` (`MASK`, requerido)
+- `area_strength` (`FLOAT`, predeterminado `0.5`)
+- `conditioning_2` a `conditioning_4` (`CONDITIONING`, opcional)
+- `mask_2` a `mask_4` (`MASK`, opcional)
+- `style_conditioning` (`CONDITIONING`, opcional)
+- `max_regions_per_mask` (`INT`, predeterminado `10`)
+- `min_region_area` (`FLOAT`, predeterminado `0.001`)
+
+**Salidas:**
+- `area_conditioning` (`CONDITIONING`)
+- `chain_debug_opt` (`CONDITIONING`)
+
+**Notas de comportamiento:**
+- Cada acondicionamiento opcional debe tener su máscara correspondiente; los pares incompletos se ignoran.
+- Los componentes conectados menores que `min_region_area` se ignoran. Si una máscara contiene más componentes que `max_regions_per_mask`, sólo se conservan los mayores.
+- `area_strength` se aplica uniformemente a cada máscara aceptada.
+- Si las máscaras aceptadas no cubren todo el canvas, el acondicionamiento global/de estilo se conserva como fallback para los píxeles no cubiertos.
+- Si no queda ninguna región válida después del filtrado, ambas salidas devuelven el acondicionamiento global.
+
+**Errores comunes:**
+- Conectar un acondicionamiento opcional sin su máscara correspondiente, o viceversa.
+- Configurar `min_region_area` lo bastante alto como para filtrar los sujetos deseados.
+- Enviar máscaras no binarias y esperar que se incluyan valores iguales o inferiores a `0.5`.
 
 ---
 
@@ -253,20 +332,11 @@ El estilo global significa aplicar `Styler Pipeline` una vez a toda la imagen, a
 
 | Avance | Descripción |
 |---------|-------------|
-| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline — múltiples áreas con ControlNet OpenPose**<br><br>Demuestra múltiples áreas verticales con múltiples LoRA sin LoRA bleeding, usando ControlNet OpenPose.<br><br>Requiere [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
-| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline — múltiples áreas con ControlNet y Styling**<br><br>Demuestra múltiples áreas y múltiples LoRA con estilo por área aplicado a cada región de forma independiente.<br><br>Requiere [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) y [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>Este workflow utiliza estilo por área, lo que significa que cada área tiene sus propios estilos configurados por separado. El estilo global también es posible conectando el nodo Styler justo antes de ControlNet. |
+| [![Paisaje de invierno y primavera](../workflows/winter_spring_landscape_v2.png)](../workflows/winter_spring_landscape_v2.png) | **Conditioning Pipeline V2 — Paisaje de invierno/primavera**<br><br>Demuestra un único paisaje continuo acondicionado como invierno a la izquierda y primavera a la derecha, sin ControlNet.<br><br>Arrastra este PNG a ComfyUI, o ábrelo desde ComfyUI, para cargar el workflow completo incorporado en los metadatos de la imagen. También se incluye un [workflow JSON independiente](../workflows/winter_spring_landscape_v2.json). |
+| [![conditioning_pipeline_area](../workflows/conditioninig_pipeline_area.png)](../workflows/conditioninig_pipeline_area.png) | **Conditioning Pipeline V2 — múltiples áreas con ControlNet OpenPose**<br><br>Demuestra múltiples áreas verticales con LoRA de personajes separados y sin LoRA bleeding, usando ControlNet OpenPose.<br><br>Arrastra este PNG a ComfyUI, o ábrelo desde ComfyUI, para cargar el workflow V2 completo incorporado en los metadatos de la imagen.<br><br>Requiere [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio). |
+| [![conditioning_pipeline_styled](../workflows/conditioninig_pipeline_styled.png)](../workflows/conditioninig_pipeline_styled.png) | **Conditioning Pipeline V2 — estilo selectivo por área con ControlNet**<br><br>Demuestra estilo selectivo por área: Inuyasha usa el acondicionamiento original sin estilo a la izquierda, mientras Styler Pipeline aplica Space Opera Anime, Space Marine Armor e iluminación Neon Blue únicamente a Ayame a la derecha.<br><br>Arrastra este PNG a ComfyUI, o ábrelo desde ComfyUI, para cargar el workflow V2 completo incorporado en los metadatos de la imagen.<br><br>Requiere [comfyui-openpose-studio](https://github.com/andreszs/comfyui-openpose-studio) y [comfyui-styler-pipeline](https://github.com/andreszs/comfyui-styler-pipeline).<br><br>Un nodo Styler puede insertarse sólo en las áreas que lo necesitan, mientras las demás se conectan directamente a Conditioning Pipeline Set Area. El estilo global también es posible conectando el nodo Styler justo antes de ControlNet. |
 
 En [este post](https://www.andreszsogon.com/building-a-multi-character-comfyui-workflow-with-area-conditioning-openpose-control-and-style-layering/) podés ver un workflow completo que combina múltiples áreas de conditioning, OpenPose, ControlNet y Styler, todos usados al mismo tiempo.
-
----
-
-## <a id="changelog"></a>Registro de cambios
-
-### 1.1.4
-
-- La optimización del condicionamiento regional redujo el tiempo medido de generación de aproximadamente 144 a 70 segundos en un workflow SDXL de dos regiones: cerca de un 51% menos tiempo de renderizado.
-- Se agregó el Fast Mode opcional. En una prueba equivalente con cobertura completa terminó en aproximadamente 54 segundos: hasta cerca de un 63% menos tiempo que la implementación anterior.
-- El rendimiento varía según GPU, modelo, resolución, sampler, configuración de ControlNet y cobertura regional. Fast Mode también puede producir diferencias visuales, por lo que permanece desactivado por defecto.
 
 ---
 
@@ -309,7 +379,7 @@ Tu contribución ayuda:
     </td>
     <td align="center" style="width: 33.33%; padding: 20px;">
       <div>
-        <h4 style="margin: 8px 0;">USDC (Arbitrum solo ⚠️)</h4>
+        <h4 style="margin: 8px 0;">USDC (Arbitrum solo)</h4>
         <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
           <img src="../assets/badge_usdc.svg" alt="USDC Badge" width="180" />
         </a>
@@ -318,33 +388,6 @@ Tu contribución ayuda:
     </td>
   </tr>
 </table>
-
-<details>
-  <summary>¿Prefieres escanear? Mostrar códigos QR</summary>
-  <br />
-  <table style="width: 100%; table-layout: fixed;">
-    <tr>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>Ko-fi</strong><br />
-        <a href="https://ko-fi.com/D1D716OLPM" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-kofi.svg" alt="Ko-fi QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>PayPal</strong><br />
-        <a href="https://www.paypal.com/ncp/payment/GEEM324PDD9NC" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-paypal.svg" alt="PayPal QR Code" width="200" />
-        </a>
-      </td>
-      <td align="center" style="width: 33.33%; padding: 12px;">
-        <strong>USDC (Arbitrum) ⚠️</strong><br />
-        <a href="https://arbiscan.io/address/0xe36a336fC6cc9Daae657b4A380dA492AB9601e73" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/qr-usdc.svg" alt="USDC (Arbitrum) QR Code" width="200" />
-        </a>
-      </td>
-    </tr>
-  </table>
-</details>
 
 <a id="usdc-address"></a>
 <details>
@@ -366,3 +409,5 @@ Licencia MIT: consulte [LICENSE](../LICENSE) para obtener el texto completo.
 
 **Mantenido por:** andreszs
 **Estado:** Desarrollo activo
+
+---
